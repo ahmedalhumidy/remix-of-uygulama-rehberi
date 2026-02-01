@@ -115,6 +115,18 @@ const Index = () => {
     }
   };
 
+  const handleScanProductFound = (product: Product) => {
+    setSelectedProduct(product);
+    setProductModalOpen(true);
+  };
+
+  const handleScanBarcodeNotFound = (barcode: string) => {
+    // Open new product modal with barcode pre-filled
+    setSelectedProduct(null);
+    setProductModalOpen(true);
+    // The barcode will be shown in toast, user can add it manually
+  };
+
   const viewTitles: Record<ViewMode, string> = {
     dashboard: 'Kontrol Paneli',
     products: 'Ürün Yönetimi',
@@ -171,6 +183,9 @@ const Index = () => {
           onAddProduct={handleAddProduct}
           alertCount={lowStockCount}
           onMobileMenuToggle={() => setMobileMenuOpen(true)}
+          products={products}
+          onProductFound={handleScanProductFound}
+          onBarcodeNotFound={handleScanBarcodeNotFound}
         />
 
         <main className="p-4 md:p-6">

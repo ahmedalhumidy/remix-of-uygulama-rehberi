@@ -1,6 +1,8 @@
 import { Search, Bell, Plus, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { ScanButton } from '@/components/scanner/ScanButton';
+import { Product } from '@/types/stock';
 
 interface HeaderProps {
   searchQuery: string;
@@ -8,6 +10,9 @@ interface HeaderProps {
   onAddProduct: () => void;
   alertCount: number;
   onMobileMenuToggle: () => void;
+  products: Product[];
+  onProductFound: (product: Product) => void;
+  onBarcodeNotFound: (barcode: string) => void;
 }
 
 export function Header({ 
@@ -15,7 +20,10 @@ export function Header({
   onSearchChange, 
   onAddProduct, 
   alertCount,
-  onMobileMenuToggle 
+  onMobileMenuToggle,
+  products,
+  onProductFound,
+  onBarcodeNotFound,
 }: HeaderProps) {
   return (
     <header className="sticky top-0 z-30 bg-card/80 backdrop-blur-lg border-b border-border">
@@ -44,6 +52,13 @@ export function Header({
 
         {/* Actions */}
         <div className="flex items-center gap-2">
+          {/* Barcode Scanner */}
+          <ScanButton 
+            products={products}
+            onProductFound={onProductFound}
+            onBarcodeNotFound={onBarcodeNotFound}
+          />
+
           {/* Notification */}
           <button className="relative p-2 rounded-lg hover:bg-muted transition-colors">
             <Bell className="w-5 h-5 text-foreground" />
