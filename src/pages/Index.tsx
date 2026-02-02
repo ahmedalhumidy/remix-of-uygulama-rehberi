@@ -5,7 +5,7 @@ import { Dashboard } from '@/components/dashboard/Dashboard';
 import { ProductList } from '@/components/products/ProductList';
 import { ProductModal } from '@/components/products/ProductModal';
 import { StockActionModal } from '@/components/products/StockActionModal';
-import { MovementList } from '@/components/movements/MovementList';
+import { MovementPage } from '@/components/movements/MovementPage';
 import { LocationView } from '@/components/locations/LocationView';
 import { AlertList } from '@/components/alerts/AlertList';
 import { Product, StockMovement, ViewMode } from '@/types/stock';
@@ -96,6 +96,8 @@ const Index = () => {
       type: stockActionType,
       quantity,
       date: new Date().toISOString().split('T')[0],
+      time: new Date().toTimeString().slice(0, 5),
+      handledBy: 'Kullanıcı',
       note: note || undefined,
     };
     setMovements(prev => [newMovement, ...prev]);
@@ -104,6 +106,57 @@ const Index = () => {
       stockActionType === 'giris' 
         ? `${quantity} adet stok girişi yapıldı` 
         : `${quantity} adet stok çıkışı yapıldı`
+    );
+  };
+
+  const handleAddMovement = (data: {
+    productId: string;
+    type: 'giris' | 'cikis';
+    quantity: number;
+    date: string;
+    time: string;
+    handledBy: string;
+    note?: string;
+  }) => {
+    const product = products.find(p => p.id === data.productId);
+    if (!product) return;
+
+    // Update product stock
+    const newStock = data.type === 'giris' 
+      ? product.mevcutStok + data.quantity 
+      : product.mevcutStok - data.quantity;
+
+    setProducts(prev => prev.map(p => 
+      p.id === data.productId 
+        ? { 
+            ...p, 
+            mevcutStok: newStock,
+            toplamGiris: data.type === 'giris' ? p.toplamGiris + data.quantity : p.toplamGiris,
+            toplamCikis: data.type === 'cikis' ? p.toplamCikis + data.quantity : p.toplamCikis,
+            uyari: newStock < p.minStok,
+            sonIslemTarihi: data.date,
+          } 
+        : p
+    ));
+
+    // Add movement record
+    const newMovement: StockMovement = {
+      id: Date.now().toString(),
+      productId: data.productId,
+      productName: product.urunAdi,
+      type: data.type,
+      quantity: data.quantity,
+      date: data.date,
+      time: data.time,
+      handledBy: data.handledBy,
+      note: data.note,
+    };
+    setMovements(prev => [newMovement, ...prev]);
+
+    toast.success(
+      data.type === 'giris' 
+        ? `${data.quantity} adet stok girişi yapıldı` 
+        : `${data.quantity} adet stok çıkışı yapıldı`
     );
   };
 
@@ -215,9 +268,11 @@ const Index = () => {
           )}
 
           {currentView === 'movements' && (
-            <MovementList 
+            <MovementPage 
+              products={products}
               movements={movements}
               searchQuery={searchQuery}
+              onAddMovement={handleAddMovement}
             />
           )}
 

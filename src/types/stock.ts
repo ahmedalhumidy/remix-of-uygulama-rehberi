@@ -21,6 +21,8 @@ export interface StockMovement {
   type: 'giris' | 'cikis';
   quantity: number;
   date: string;
+  time?: string;
+  handledBy: string;
   note?: string;
 }
 
