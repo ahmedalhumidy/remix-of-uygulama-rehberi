@@ -52,12 +52,196 @@ export type Database = {
           },
         ]
       }
+      login_attempts: {
+        Row: {
+          created_at: string
+          email: string
+          failure_reason: string | null
+          id: string
+          ip_address: string | null
+          success: boolean
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          failure_reason?: string | null
+          id?: string
+          ip_address?: string | null
+          success?: boolean
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          failure_reason?: string | null
+          id?: string
+          ip_address?: string | null
+          success?: boolean
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "login_attempts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          action_url: string | null
+          category: string
+          created_at: string
+          id: string
+          is_read: boolean
+          message: string
+          metadata: Json | null
+          read_at: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          action_url?: string | null
+          category?: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message: string
+          metadata?: Json | null
+          read_at?: string | null
+          title: string
+          type?: string
+          user_id: string
+        }
+        Update: {
+          action_url?: string | null
+          category?: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message?: string
+          metadata?: Json | null
+          read_at?: string | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      organizations: {
+        Row: {
+          created_at: string
+          currency: string
+          date_format: string
+          default_min_stock: number
+          default_warning_threshold: number
+          id: string
+          is_active: boolean
+          logo_url: string | null
+          name: string
+          timezone: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          currency?: string
+          date_format?: string
+          default_min_stock?: number
+          default_warning_threshold?: number
+          id?: string
+          is_active?: boolean
+          logo_url?: string | null
+          name?: string
+          timezone?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          currency?: string
+          date_format?: string
+          default_min_stock?: number
+          default_warning_threshold?: number
+          id?: string
+          is_active?: boolean
+          logo_url?: string | null
+          name?: string
+          timezone?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      product_activity_log: {
+        Row: {
+          action_type: string
+          created_at: string
+          id: string
+          new_values: Json | null
+          note: string | null
+          old_values: Json | null
+          performed_by: string | null
+          product_id: string
+        }
+        Insert: {
+          action_type: string
+          created_at?: string
+          id?: string
+          new_values?: Json | null
+          note?: string | null
+          old_values?: Json | null
+          performed_by?: string | null
+          product_id: string
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          id?: string
+          new_values?: Json | null
+          note?: string | null
+          old_values?: Json | null
+          performed_by?: string | null
+          product_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_activity_log_performed_by_fkey"
+            columns: ["performed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "product_activity_log_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           acilis_stok: number
           barkod: string | null
           created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
           id: string
+          is_deleted: boolean
           mevcut_stok: number
           min_stok: number
           notes: string | null
@@ -74,7 +258,10 @@ export type Database = {
           acilis_stok?: number
           barkod?: string | null
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
           id?: string
+          is_deleted?: boolean
           mevcut_stok?: number
           min_stok?: number
           notes?: string | null
@@ -91,7 +278,10 @@ export type Database = {
           acilis_stok?: number
           barkod?: string | null
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
           id?: string
+          is_deleted?: boolean
           mevcut_stok?: number
           min_stok?: number
           notes?: string | null
@@ -104,7 +294,15 @@ export type Database = {
           urun_kodu?: string
           uyari?: boolean
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "products_deleted_by_fkey"
+            columns: ["deleted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -161,8 +359,11 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string | null
+          deleted_at: string | null
+          deleted_by: string | null
           handled_by: string
           id: string
+          is_deleted: boolean
           movement_date: string
           movement_time: string
           movement_type: string
@@ -173,8 +374,11 @@ export type Database = {
         Insert: {
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           handled_by: string
           id?: string
+          is_deleted?: boolean
           movement_date?: string
           movement_time?: string
           movement_type: string
@@ -185,8 +389,11 @@ export type Database = {
         Update: {
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           handled_by?: string
           id?: string
+          is_deleted?: boolean
           movement_date?: string
           movement_time?: string
           movement_type?: string
@@ -203,10 +410,52 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "stock_movements_deleted_by_fkey"
+            columns: ["deleted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
             foreignKeyName: "stock_movements_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      system_settings: {
+        Row: {
+          created_at: string
+          id: string
+          organization_id: string | null
+          setting_key: string
+          setting_value: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          organization_id?: string | null
+          setting_key: string
+          setting_value?: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          organization_id?: string | null
+          setting_key?: string
+          setting_value?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "system_settings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -228,6 +477,50 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      user_sessions: {
+        Row: {
+          created_at: string
+          expires_at: string | null
+          id: string
+          ip_address: string | null
+          is_active: boolean
+          last_activity: string
+          session_token: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          ip_address?: string | null
+          is_active?: boolean
+          last_activity?: string
+          session_token: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          ip_address?: string | null
+          is_active?: boolean
+          last_activity?: string
+          session_token?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_sessions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
     }
     Views: {
@@ -266,6 +559,9 @@ export type Database = {
         | "users.manage"
         | "logs.view"
         | "reports.view"
+        | "settings.view"
+        | "settings.manage"
+        | "security.view"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -405,6 +701,9 @@ export const Constants = {
         "users.manage",
         "logs.view",
         "reports.view",
+        "settings.view",
+        "settings.manage",
+        "security.view",
       ],
     },
   },

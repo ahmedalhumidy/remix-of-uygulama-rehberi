@@ -14,7 +14,10 @@ export type PermissionType =
   | 'users.view'
   | 'users.manage'
   | 'logs.view'
-  | 'reports.view';
+  | 'reports.view'
+  | 'settings.view'
+  | 'settings.manage'
+  | 'security.view';
 
 interface RolePermissions {
   role: AppRole;
@@ -60,6 +63,9 @@ const permissionLabels: Record<PermissionType, string> = {
   'users.manage': 'Kullanıcıları yönet',
   'logs.view': 'Denetim günlüklerini görüntüle',
   'reports.view': 'Raporları görüntüle',
+  'settings.view': 'Ayarları görüntüle',
+  'settings.manage': 'Ayarları yönet',
+  'security.view': 'Güvenlik verilerini görüntüle',
 };
 
 const allRoles: AppRole[] = ['admin', 'manager', 'staff', 'viewer'];

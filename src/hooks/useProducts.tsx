@@ -12,6 +12,7 @@ export function useProducts() {
       const { data, error } = await supabase
         .from('products')
         .select('*')
+        .eq('is_deleted', false)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -126,20 +127,24 @@ export function useProducts() {
 
   const deleteProduct = async (id: string) => {
     try {
+      // Soft delete - set is_deleted to true
       const { error } = await supabase
         .from('products')
-        .delete()
+        .update({ 
+          is_deleted: true, 
+          deleted_at: new Date().toISOString(),
+        })
         .eq('id', id);
 
       if (error) throw error;
 
       const product = products.find(p => p.id === id);
       setProducts(prev => prev.filter(p => p.id !== id));
-      toast.success(`${product?.urunAdi || 'Ürün'} silindi`);
+      toast.success(`${product?.urunAdi || 'Ürün'} arşivlendi`);
       return true;
     } catch (error) {
-      console.error('Error deleting product:', error);
-      toast.error('Ürün silinirken hata oluştu');
+      console.error('Error archiving product:', error);
+      toast.error('Ürün arşivlenirken hata oluştu');
       return false;
     }
   };

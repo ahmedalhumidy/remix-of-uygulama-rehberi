@@ -1,7 +1,8 @@
-import { Search, Bell, Plus, Menu } from 'lucide-react';
+import { Search, Plus, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScanButton } from '@/components/scanner/ScanButton';
+import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 import { Product } from '@/types/stock';
 import { usePermissions } from '@/hooks/usePermissions';
 
@@ -63,13 +64,8 @@ export function Header({
             onBarcodeNotFound={onBarcodeNotFound}
           />
 
-          {/* Notification */}
-          <button className="relative p-2 rounded-lg hover:bg-muted transition-colors">
-            <Bell className="w-5 h-5 text-foreground" />
-            {alertCount > 0 && (
-              <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full pulse-ring" />
-            )}
-          </button>
+          {/* Notification Center */}
+          <NotificationCenter />
 
           {/* Add Product - Permission Based */}
           {canCreateProducts && (
