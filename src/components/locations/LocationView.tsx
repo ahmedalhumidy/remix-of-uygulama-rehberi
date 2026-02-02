@@ -52,7 +52,7 @@ export function LocationView({ products, searchQuery, onViewProduct }: LocationV
                   <MapPin className="w-5 h-5 text-primary" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-foreground">{location}</h3>
+                  <h3 className="font-semibold text-foreground">{location.split('-')[0]}</h3>
                   <p className="text-sm text-muted-foreground">
                     {locationProducts.length} ürün
                   </p>
