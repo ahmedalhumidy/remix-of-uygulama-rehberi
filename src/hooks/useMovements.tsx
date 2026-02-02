@@ -47,7 +47,6 @@ export function useMovements(products: Product[]) {
     quantity: number;
     date: string;
     time: string;
-    handledBy: string;
     note?: string;
   }) => {
     try {
@@ -58,6 +57,24 @@ export function useMovements(products: Product[]) {
       }
 
       const { data: session } = await supabase.auth.getSession();
+      const userId = session.session?.user.id;
+      
+      if (!userId) {
+        toast.error('Oturum bulunamadı. Lütfen tekrar giriş yapın.');
+        return null;
+      }
+
+      // Fetch the user's profile name server-side to prevent impersonation
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('user_id', userId)
+        .single();
+
+      if (profileError || !profile) {
+        toast.error('Kullanıcı profili bulunamadı');
+        return null;
+      }
 
       const { data: newMovement, error } = await supabase
         .from('stock_movements')
@@ -67,9 +84,9 @@ export function useMovements(products: Product[]) {
           quantity: data.quantity,
           movement_date: data.date,
           movement_time: data.time,
-          handled_by: data.handledBy,
+          handled_by: profile.full_name,
           notes: data.note || null,
-          created_by: session.session?.user.id || null,
+          created_by: userId,
         })
         .select()
         .single();

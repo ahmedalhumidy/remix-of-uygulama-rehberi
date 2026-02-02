@@ -1,17 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ArrowUpRight, ArrowDownRight, User, Calendar, Clock, Package, FileText, Scan, Plus, ChevronsUpDown, Check } from 'lucide-react';
 import { Product } from '@/types/stock';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Command,
@@ -24,6 +17,7 @@ import {
 import { cn } from '@/lib/utils';
 import { BarcodeScanner } from '@/components/scanner/BarcodeScanner';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 interface MovementFormProps {
   products: Product[];
@@ -33,19 +27,10 @@ interface MovementFormProps {
     quantity: number;
     date: string;
     time: string;
-    handledBy: string;
     note?: string;
   }) => void;
   onAddNewProduct?: (barcode: string) => void;
 }
-
-const staffMembers = [
-  'Ahmet Yılmaz',
-  'Mehmet Demir', 
-  'Fatma Kaya',
-  'Ali Öztürk',
-  'Ayşe Çelik',
-];
 
 export function MovementForm({ products, onSubmit, onAddNewProduct }: MovementFormProps) {
   const [type, setType] = useState<'giris' | 'cikis'>('giris');
@@ -53,14 +38,30 @@ export function MovementForm({ products, onSubmit, onAddNewProduct }: MovementFo
   const [quantity, setQuantity] = useState(1);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [time, setTime] = useState(new Date().toTimeString().slice(0, 5));
-  const [handledBy, setHandledBy] = useState('');
   const [note, setNote] = useState('');
   const [showScanner, setShowScanner] = useState(false);
   const [notFoundBarcode, setNotFoundBarcode] = useState<string | null>(null);
   const [autoSubmitReady, setAutoSubmitReady] = useState(false);
   const [openProductCombobox, setOpenProductCombobox] = useState(false);
+  const [currentUserName, setCurrentUserName] = useState<string | null>(null);
 
   const selectedProduct = products.find(p => p.id === productId);
+
+  // Fetch current user's profile name on mount
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      const { data: session } = await supabase.auth.getSession();
+      if (session.session?.user.id) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('user_id', session.session.user.id)
+          .single();
+        setCurrentUserName(profile?.full_name || session.session.user.email || 'Bilinmeyen Kullanıcı');
+      }
+    };
+    fetchUserProfile();
+  }, []);
 
   const handleBarcodeScan = (code: string) => {
     const product = products.find(p => p.barkod === code || p.urunKodu === code);
@@ -90,7 +91,7 @@ export function MovementForm({ products, onSubmit, onAddNewProduct }: MovementFo
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!productId || !handledBy) return;
+    if (!productId) return;
 
     onSubmit({
       productId,
@@ -98,7 +99,6 @@ export function MovementForm({ products, onSubmit, onAddNewProduct }: MovementFo
       quantity,
       date,
       time,
-      handledBy,
       note: note || undefined,
     });
 
@@ -395,24 +395,21 @@ export function MovementForm({ products, onSubmit, onAddNewProduct }: MovementFo
         </div>
       </div>
 
-      {/* Handled By */}
+      {/* Handled By - Read Only (Auto-filled from logged-in user) */}
       <div className="space-y-2">
         <Label className="flex items-center gap-2">
           <User className="w-4 h-4" />
-          {type === 'giris' ? 'Teslim Alan' : 'Teslim Eden'} *
+          {type === 'giris' ? 'Teslim Alan' : 'Teslim Eden'}
         </Label>
-        <Select value={handledBy} onValueChange={setHandledBy}>
-          <SelectTrigger>
-            <SelectValue placeholder="Personel seçin..." />
-          </SelectTrigger>
-          <SelectContent>
-            {staffMembers.map(staff => (
-              <SelectItem key={staff} value={staff}>
-                {staff}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-3 p-3 rounded-lg bg-muted border border-border">
+          <div className="p-2 rounded-full bg-primary/10">
+            <User className="w-4 h-4 text-primary" />
+          </div>
+          <div>
+            <p className="font-medium text-foreground">{currentUserName || 'Yükleniyor...'}</p>
+            <p className="text-xs text-muted-foreground">Oturum açmış kullanıcı</p>
+          </div>
+        </div>
       </div>
 
       {/* Note */}
@@ -432,7 +429,7 @@ export function MovementForm({ products, onSubmit, onAddNewProduct }: MovementFo
       {/* Submit Button */}
       <Button
         type="submit"
-        disabled={!productId || !handledBy}
+        disabled={!productId || !currentUserName}
         className={cn(
           'w-full border-0',
           type === 'giris' ? 'gradient-success' : 'bg-destructive hover:bg-destructive/90'
