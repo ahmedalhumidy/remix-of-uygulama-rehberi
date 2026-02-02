@@ -5,8 +5,18 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Shield, ShieldOff, Users, Loader2 } from 'lucide-react';
+import { Shield, ShieldOff, Users, Loader2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface UserWithRole {
   user_id: string;
@@ -21,6 +31,8 @@ export function UserManagement() {
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<UserWithRole | null>(null);
 
   const fetchUsers = async () => {
     try {
@@ -95,6 +107,42 @@ export function UserManagement() {
       toast.error('Yetki güncellenemedi');
     } finally {
       setUpdating(null);
+    }
+  };
+
+  const deleteUser = async (userToDelete: UserWithRole) => {
+    if (userToDelete.user_id === user?.id) {
+      toast.error('Kendinizi silemezsiniz');
+      return;
+    }
+
+    setDeleting(userToDelete.user_id);
+
+    try {
+      // Delete user role first
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', userToDelete.user_id);
+
+      if (roleError) throw roleError;
+
+      // Delete profile
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('user_id', userToDelete.user_id);
+
+      if (profileError) throw profileError;
+
+      setUsers(prev => prev.filter(u => u.user_id !== userToDelete.user_id));
+      toast.success('Kullanıcı başarıyla silindi');
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      toast.error('Kullanıcı silinemedi');
+    } finally {
+      setDeleting(null);
+      setDeleteConfirm(null);
     }
   };
 
@@ -185,6 +233,19 @@ export function UserManagement() {
                         </>
                       )}
                     </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setDeleteConfirm(u)}
+                      disabled={deleting === u.user_id || u.user_id === user?.id}
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    >
+                      {deleting === u.user_id ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="w-4 h-4" />
+                      )}
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}
@@ -192,6 +253,26 @@ export function UserManagement() {
           </Table>
         </div>
       </CardContent>
+
+      <AlertDialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Kullanıcıyı Sil</AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong>{deleteConfirm?.full_name}</strong> kullanıcısını silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>İptal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteConfirm && deleteUser(deleteConfirm)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Sil
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
