@@ -24,7 +24,6 @@ export function UserManagement() {
 
   const fetchUsers = async () => {
     try {
-      // Fetch profiles with their roles
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('user_id, full_name, created_at');
@@ -37,12 +36,11 @@ export function UserManagement() {
 
       if (rolesError) throw rolesError;
 
-      // Combine data
       const usersWithRoles: UserWithRole[] = profiles.map(profile => {
         const userRole = roles.find(r => r.user_id === profile.user_id);
         return {
           user_id: profile.user_id,
-          email: profile.full_name, // We'll show full_name as identifier
+          email: profile.full_name,
           full_name: profile.full_name,
           role: (userRole?.role as 'admin' | 'employee') || 'employee',
           created_at: profile.created_at,
@@ -52,7 +50,7 @@ export function UserManagement() {
       setUsers(usersWithRoles);
     } catch (error) {
       console.error('Error fetching users:', error);
-      toast.error('خطأ في جلب بيانات المستخدمين');
+      toast.error('Kullanıcı verileri alınamadı');
     } finally {
       setLoading(false);
     }
@@ -66,7 +64,7 @@ export function UserManagement() {
 
   const toggleRole = async (userId: string, currentRole: 'admin' | 'employee') => {
     if (userId === user?.id) {
-      toast.error('لا يمكنك تغيير صلاحياتك الخاصة');
+      toast.error('Kendi yetkinizi değiştiremezsiniz');
       return;
     }
 
@@ -89,12 +87,12 @@ export function UserManagement() {
 
       toast.success(
         newRole === 'admin' 
-          ? 'تم ترقية المستخدم إلى مشرف' 
-          : 'تم إزالة صلاحيات المشرف'
+          ? 'Kullanıcı yönetici olarak yükseltildi' 
+          : 'Yönetici yetkisi kaldırıldı'
       );
     } catch (error) {
       console.error('Error updating role:', error);
-      toast.error('خطأ في تحديث الصلاحيات');
+      toast.error('Yetki güncellenemedi');
     } finally {
       setUpdating(null);
     }
@@ -105,7 +103,7 @@ export function UserManagement() {
       <Card>
         <CardContent className="p-8 text-center">
           <Shield className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-          <p className="text-muted-foreground">هذه الصفحة متاحة فقط للمشرفين</p>
+          <p className="text-muted-foreground">Bu sayfa sadece yöneticiler için</p>
         </CardContent>
       </Card>
     );
@@ -116,7 +114,7 @@ export function UserManagement() {
       <Card>
         <CardContent className="p-8 text-center">
           <Loader2 className="w-8 h-8 mx-auto animate-spin text-primary" />
-          <p className="text-muted-foreground mt-2">جاري تحميل المستخدمين...</p>
+          <p className="text-muted-foreground mt-2">Kullanıcılar yükleniyor...</p>
         </CardContent>
       </Card>
     );
@@ -127,9 +125,9 @@ export function UserManagement() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Users className="w-5 h-5" />
-          إدارة المستخدمين
-          <Badge variant="secondary" className="mr-2">
-            {users.length} مستخدم
+          Kullanıcı Yönetimi
+          <Badge variant="secondary" className="ml-2">
+            {users.length} kullanıcı
           </Badge>
         </CardTitle>
       </CardHeader>
@@ -138,10 +136,10 @@ export function UserManagement() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="text-right">المستخدم</TableHead>
-                <TableHead className="text-right">الصلاحية</TableHead>
-                <TableHead className="text-right">تاريخ التسجيل</TableHead>
-                <TableHead className="text-center">الإجراءات</TableHead>
+                <TableHead>Kullanıcı</TableHead>
+                <TableHead>Yetki</TableHead>
+                <TableHead>Kayıt Tarihi</TableHead>
+                <TableHead className="text-center">İşlemler</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -151,7 +149,7 @@ export function UserManagement() {
                     <div>
                       <p>{u.full_name}</p>
                       {u.user_id === user?.id && (
-                        <Badge variant="outline" className="text-xs mt-1">أنت</Badge>
+                        <Badge variant="outline" className="text-xs mt-1">Siz</Badge>
                       )}
                     </div>
                   </TableCell>
@@ -160,11 +158,11 @@ export function UserManagement() {
                       variant={u.role === 'admin' ? 'default' : 'secondary'}
                       className={u.role === 'admin' ? 'bg-primary' : ''}
                     >
-                      {u.role === 'admin' ? 'مشرف' : 'موظف'}
+                      {u.role === 'admin' ? 'Yönetici' : 'Çalışan'}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-muted-foreground">
-                    {new Date(u.created_at).toLocaleDateString('ar-SA')}
+                    {new Date(u.created_at).toLocaleDateString('tr-TR')}
                   </TableCell>
                   <TableCell className="text-center">
                     <Button
@@ -177,13 +175,13 @@ export function UserManagement() {
                         <Loader2 className="w-4 h-4 animate-spin" />
                       ) : u.role === 'admin' ? (
                         <>
-                          <ShieldOff className="w-4 h-4 ml-1" />
-                          إزالة المشرف
+                          <ShieldOff className="w-4 h-4 mr-1" />
+                          Yetkiyi Kaldır
                         </>
                       ) : (
                         <>
-                          <Shield className="w-4 h-4 ml-1" />
-                          ترقية لمشرف
+                          <Shield className="w-4 h-4 mr-1" />
+                          Yönetici Yap
                         </>
                       )}
                     </Button>
