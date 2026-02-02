@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { Suspense, lazy, useState, useCallback } from 'react';
 import { ScanBarcode } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { BarcodeScanner } from './BarcodeScanner';
 import { Product } from '@/types/stock';
 import { toast } from 'sonner';
+
+const LazyBarcodeScanner = lazy(() => import('./BarcodeScanner').then(m => ({ default: m.BarcodeScanner })));
 
 interface ScanButtonProps {
   products: Product[];
@@ -14,7 +15,7 @@ interface ScanButtonProps {
 export function ScanButton({ products, onProductFound, onBarcodeNotFound }: ScanButtonProps) {
   const [scannerOpen, setScannerOpen] = useState(false);
 
-  const handleScan = (code: string) => {
+  const handleScan = useCallback((code: string) => {
     // Search by barcode or product code
     const product = products.find(
       (p) => p.barkod === code || p.urunKodu === code
@@ -27,7 +28,7 @@ export function ScanButton({ products, onProductFound, onBarcodeNotFound }: Scan
       toast.error(`Barkod bulunamadı: ${code}`);
       onBarcodeNotFound(code);
     }
-  };
+  }, [products, onBarcodeNotFound, onProductFound]);
 
   return (
     <>
@@ -40,11 +41,16 @@ export function ScanButton({ products, onProductFound, onBarcodeNotFound }: Scan
         <span className="hidden sm:inline">Barkod Tara</span>
       </Button>
 
-      <BarcodeScanner
-        isOpen={scannerOpen}
-        onClose={() => setScannerOpen(false)}
-        onScan={handleScan}
-      />
+      {/* Lazy-load scanner (and html5-qrcode) only when user opens it */}
+      {scannerOpen && (
+        <Suspense fallback={null}>
+          <LazyBarcodeScanner
+            isOpen={scannerOpen}
+            onClose={() => setScannerOpen(false)}
+            onScan={handleScan}
+          />
+        </Suspense>
+      )}
     </>
   );
 }
