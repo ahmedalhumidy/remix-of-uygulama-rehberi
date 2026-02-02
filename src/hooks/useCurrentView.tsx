@@ -12,6 +12,8 @@ const viewRoutes: Record<ViewMode, string> = {
   logs: '/logs',
   reports: '/reports',
   profile: '/profile',
+  settings: '/settings',
+  archive: '/archive',
 };
 
 const routeToView: Record<string, ViewMode> = {
@@ -24,6 +26,8 @@ const routeToView: Record<string, ViewMode> = {
   '/logs': 'logs',
   '/reports': 'reports',
   '/profile': 'profile',
+  '/settings': 'settings',
+  '/archive': 'archive',
 };
 
 export function useCurrentView() {

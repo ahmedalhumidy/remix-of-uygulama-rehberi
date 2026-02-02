@@ -12,6 +12,8 @@ import { UserManagement } from '@/components/users/UserManagement';
 import { AuditLogList } from '@/components/users/AuditLogList';
 import { ReportsPage } from '@/components/reports/ReportsPage';
 import { ProfileSettings } from '@/components/profile/ProfileSettings';
+import { SystemSettingsPage } from '@/components/settings/SystemSettingsPage';
+import { ArchiveManagement } from '@/components/archive/ArchiveManagement';
 import { Product, ViewMode } from '@/types/stock';
 import { useProducts } from '@/hooks/useProducts';
 import { useMovements } from '@/hooks/useMovements';
@@ -136,6 +138,8 @@ const Index = () => {
     logs: 'Denetim Günlüğü',
     reports: 'Raporlar ve Analiz',
     profile: 'Profil Ayarları',
+    settings: 'Sistem Ayarları',
+    archive: 'Arşiv Yönetimi',
   };
 
   const isLoading = productsLoading || movementsLoading;
@@ -279,6 +283,14 @@ const Index = () => {
 
           {currentView === 'profile' && (
             <ProfileSettings />
+          )}
+
+          {currentView === 'settings' && (
+            <SystemSettingsPage />
+          )}
+
+          {currentView === 'archive' && (
+            <ArchiveManagement />
           )}
         </main>
       </div>

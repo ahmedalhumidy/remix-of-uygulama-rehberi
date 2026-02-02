@@ -7,12 +7,15 @@ import {
   UserCog,
   Users,
   ScrollText,
-  BarChart3
+  BarChart3,
+  Settings,
+  Archive
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { ViewMode } from '@/types/stock';
 import { cn } from '@/lib/utils';
 import { usePermissions, PermissionType } from '@/hooks/usePermissions';
+import { useSystemSettings } from '@/hooks/useSystemSettings';
 
 interface SidebarProps {
   currentView: ViewMode;
@@ -34,14 +37,17 @@ const menuItems: MenuItem[] = [
   { id: 'movements', path: '/movements', icon: ArrowLeftRight, label: 'Stok Hareketleri' },
   { id: 'locations', path: '/locations', icon: MapPin, label: 'Konumlar' },
   { id: 'alerts', path: '/alerts', icon: AlertTriangle, label: 'Uyarılar' },
+  { id: 'archive', path: '/archive', icon: Archive, label: 'Arşiv', requiredPermission: 'products.delete' },
   { id: 'reports', path: '/reports', icon: BarChart3, label: 'Raporlar', requiredPermission: 'reports.view' },
   { id: 'users', path: '/users', icon: Users, label: 'Kullanıcılar', requiredPermission: 'users.view' },
   { id: 'logs', path: '/logs', icon: ScrollText, label: 'Denetim Günlüğü', requiredPermission: 'logs.view' },
+  { id: 'settings', path: '/settings', icon: Settings, label: 'Sistem Ayarları', requiredPermission: 'settings.view' },
   { id: 'profile', path: '/profile', icon: UserCog, label: 'Profil Ayarları' },
 ];
 
 export function Sidebar({ currentView, onViewChange, alertCount }: SidebarProps) {
   const { hasPermission } = usePermissions();
+  const { organization } = useSystemSettings();
   const location = useLocation();
   
   const visibleMenuItems = menuItems.filter(item => {
@@ -57,13 +63,16 @@ export function Sidebar({ currentView, onViewChange, alertCount }: SidebarProps)
     return location.pathname === path;
   };
 
+  const companyName = organization?.name || 'GLORE';
+  const logoUrl = organization?.logo_url || '/favicon.png';
+
   return (
     <aside className="fixed left-0 top-0 z-40 h-screen w-64 bg-sidebar border-r border-sidebar-border flex flex-col">
       {/* Logo */}
       <div className="flex items-center gap-3 px-6 py-5 border-b border-sidebar-border">
-        <img src="/favicon.png" alt="GLORE Logo" className="w-10 h-10 rounded-xl" />
+        <img src={logoUrl} alt={`${companyName} Logo`} className="w-10 h-10 rounded-xl object-cover" />
         <div>
-          <h1 className="font-bold text-lg text-sidebar-foreground">GLORE</h1>
+          <h1 className="font-bold text-lg text-sidebar-foreground">{companyName}</h1>
           <p className="text-xs text-sidebar-foreground/60">Stok Takip Sistemi</p>
         </div>
       </div>
