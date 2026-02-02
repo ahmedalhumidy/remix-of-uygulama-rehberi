@@ -180,6 +180,15 @@ const Index = () => {
     // The barcode will be shown in toast, user can add it manually
   };
 
+  const handleAddNewProductFromMovement = (barcode: string) => {
+    // Open new product modal with barcode pre-filled from movement page
+    setSelectedProduct(null);
+    setProductModalOpen(true);
+    toast.info('Yeni ürün ekleyin', {
+      description: `Barkod: ${barcode} - Lütfen ürün bilgilerini doldurun`,
+    });
+  };
+
   const viewTitles: Record<ViewMode, string> = {
     dashboard: 'Kontrol Paneli',
     products: 'Ürün Yönetimi',
@@ -273,6 +282,7 @@ const Index = () => {
               movements={movements}
               searchQuery={searchQuery}
               onAddMovement={handleAddMovement}
+              onAddNewProduct={handleAddNewProductFromMovement}
             />
           )}
 

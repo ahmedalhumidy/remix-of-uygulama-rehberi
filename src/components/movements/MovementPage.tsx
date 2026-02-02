@@ -18,11 +18,12 @@ interface MovementPageProps {
     handledBy: string;
     note?: string;
   }) => void;
+  onAddNewProduct?: (barcode: string) => void;
 }
 
 type Tab = 'form' | 'history';
 
-export function MovementPage({ products, movements, searchQuery, onAddMovement }: MovementPageProps) {
+export function MovementPage({ products, movements, searchQuery, onAddMovement, onAddNewProduct }: MovementPageProps) {
   const [activeTab, setActiveTab] = useState<Tab>('form');
 
   return (
@@ -58,7 +59,11 @@ export function MovementPage({ products, movements, searchQuery, onAddMovement }
       {/* Content */}
       {activeTab === 'form' && (
         <div className="max-w-xl">
-          <MovementForm products={products} onSubmit={onAddMovement} />
+          <MovementForm 
+            products={products} 
+            onSubmit={onAddMovement} 
+            onAddNewProduct={onAddNewProduct}
+          />
         </div>
       )}
 
