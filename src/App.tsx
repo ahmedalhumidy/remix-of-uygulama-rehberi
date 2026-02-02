@@ -58,6 +58,31 @@ const AppRoutes = () => (
         <Index />
       </ProtectedRoute>
     } />
+    <Route path="/products" element={
+      <ProtectedRoute>
+        <Index />
+      </ProtectedRoute>
+    } />
+    <Route path="/movements" element={
+      <ProtectedRoute>
+        <Index />
+      </ProtectedRoute>
+    } />
+    <Route path="/locations" element={
+      <ProtectedRoute>
+        <Index />
+      </ProtectedRoute>
+    } />
+    <Route path="/alerts" element={
+      <ProtectedRoute>
+        <Index />
+      </ProtectedRoute>
+    } />
+    <Route path="/users" element={
+      <ProtectedRoute>
+        <Index />
+      </ProtectedRoute>
+    } />
     <Route path="*" element={<NotFound />} />
   </Routes>
 );

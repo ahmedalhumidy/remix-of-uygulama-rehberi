@@ -1,0 +1,37 @@
+import { useLocation, useNavigate } from 'react-router-dom';
+import { ViewMode } from '@/types/stock';
+import { useCallback, useMemo } from 'react';
+
+const viewRoutes: Record<ViewMode, string> = {
+  dashboard: '/',
+  products: '/products',
+  movements: '/movements',
+  locations: '/locations',
+  alerts: '/alerts',
+  users: '/users',
+};
+
+const routeToView: Record<string, ViewMode> = {
+  '/': 'dashboard',
+  '/products': 'products',
+  '/movements': 'movements',
+  '/locations': 'locations',
+  '/alerts': 'alerts',
+  '/users': 'users',
+};
+
+export function useCurrentView() {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const currentView = useMemo<ViewMode>(() => {
+    return routeToView[location.pathname] || 'dashboard';
+  }, [location.pathname]);
+
+  const setCurrentView = useCallback((view: ViewMode) => {
+    const route = viewRoutes[view];
+    navigate(route, { replace: false });
+  }, [navigate]);
+
+  return { currentView, setCurrentView };
+}
