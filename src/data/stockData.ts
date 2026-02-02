@@ -44,10 +44,10 @@ export const initialProducts: Product[] = [
 ];
 
 export const initialMovements: StockMovement[] = [
-  { id: '1', productId: '1', productName: 'Mercan', type: 'giris', quantity: 10, date: '2024-01-15', note: 'Tedarikçiden alım' },
-  { id: '2', productId: '3', productName: 'Cesena', type: 'cikis', quantity: 2, date: '2024-01-14', note: 'Satış' },
-  { id: '3', productId: '20', productName: 'Audra', type: 'giris', quantity: 15, date: '2024-01-14', note: 'Yeni sevkiyat' },
-  { id: '4', productId: '7', productName: 'Tivoli', type: 'cikis', quantity: 3, date: '2024-01-13', note: 'Mağaza transferi' },
-  { id: '5', productId: '16', productName: 'Lulu Kristal Pembe Sarı Kek Fanus', type: 'giris', quantity: 8, date: '2024-01-13' },
-  { id: '6', productId: '33', productName: 'Hüma', type: 'cikis', quantity: 5, date: '2024-01-12', note: 'Online sipariş' },
+  { id: '1', productId: '1', productName: 'Mercan', type: 'giris', quantity: 10, date: '2024-01-15', time: '09:30', handledBy: 'Ahmet Yılmaz', note: 'Tedarikçiden alım' },
+  { id: '2', productId: '3', productName: 'Cesena', type: 'cikis', quantity: 2, date: '2024-01-14', time: '14:15', handledBy: 'Mehmet Demir', note: 'Satış' },
+  { id: '3', productId: '20', productName: 'Audra', type: 'giris', quantity: 15, date: '2024-01-14', time: '11:00', handledBy: 'Ahmet Yılmaz', note: 'Yeni sevkiyat' },
+  { id: '4', productId: '7', productName: 'Tivoli', type: 'cikis', quantity: 3, date: '2024-01-13', time: '16:45', handledBy: 'Fatma Kaya', note: 'Mağaza transferi' },
+  { id: '5', productId: '16', productName: 'Lulu Kristal Pembe Sarı Kek Fanus', type: 'giris', quantity: 8, date: '2024-01-13', time: '10:20', handledBy: 'Ahmet Yılmaz' },
+  { id: '6', productId: '33', productName: 'Hüma', type: 'cikis', quantity: 5, date: '2024-01-12', time: '13:30', handledBy: 'Mehmet Demir', note: 'Online sipariş' },
 ];
