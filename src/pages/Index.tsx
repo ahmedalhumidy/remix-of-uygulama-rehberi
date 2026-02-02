@@ -8,17 +8,22 @@ import { StockActionModal } from '@/components/products/StockActionModal';
 import { MovementPage } from '@/components/movements/MovementPage';
 import { LocationView } from '@/components/locations/LocationView';
 import { AlertList } from '@/components/alerts/AlertList';
-import { Product, StockMovement, ViewMode } from '@/types/stock';
-import { initialProducts, initialMovements } from '@/data/stockData';
-import { toast } from 'sonner';
+import { Product, ViewMode } from '@/types/stock';
+import { useProducts } from '@/hooks/useProducts';
+import { useMovements } from '@/hooks/useMovements';
+import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
-import { X } from 'lucide-react';
+import { X, LogOut } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
 const Index = () => {
+  const { signOut, user } = useAuth();
+  const { products, loading: productsLoading, addProduct, updateProduct, deleteProduct, refreshProducts } = useProducts();
+  const { movements, loading: movementsLoading, addMovement, refreshMovements } = useMovements(products);
+  
   const [currentView, setCurrentView] = useState<ViewMode>('dashboard');
   const [searchQuery, setSearchQuery] = useState('');
-  const [products, setProducts] = useState<Product[]>(initialProducts);
-  const [movements, setMovements] = useState<StockMovement[]>(initialMovements);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   // Modals
@@ -39,26 +44,16 @@ const Index = () => {
     setProductModalOpen(true);
   };
 
-  const handleSaveProduct = (productData: Omit<Product, 'id'> | Product) => {
+  const handleSaveProduct = async (productData: Omit<Product, 'id'> | Product) => {
     if ('id' in productData) {
-      // Update existing
-      setProducts(prev => prev.map(p => p.id === productData.id ? productData : p));
-      toast.success('Ürün güncellendi');
+      await updateProduct(productData);
     } else {
-      // Add new
-      const newProduct: Product = {
-        ...productData,
-        id: Date.now().toString(),
-      };
-      setProducts(prev => [...prev, newProduct]);
-      toast.success('Yeni ürün eklendi');
+      await addProduct(productData);
     }
   };
 
-  const handleDeleteProduct = (id: string) => {
-    const product = products.find(p => p.id === id);
-    setProducts(prev => prev.filter(p => p.id !== id));
-    toast.success(`${product?.urunAdi || 'Ürün'} silindi`);
+  const handleDeleteProduct = async (id: string) => {
+    await deleteProduct(id);
   };
 
   const handleStockAction = (product: Product, type: 'giris' | 'cikis') => {
@@ -67,49 +62,24 @@ const Index = () => {
     setStockActionModalOpen(true);
   };
 
-  const handleStockActionConfirm = (quantity: number, note: string) => {
+  const handleStockActionConfirm = async (quantity: number, note: string) => {
     if (!selectedProduct) return;
 
-    // Update product stock
-    const newStock = stockActionType === 'giris' 
-      ? selectedProduct.mevcutStok + quantity 
-      : selectedProduct.mevcutStok - quantity;
-
-    setProducts(prev => prev.map(p => 
-      p.id === selectedProduct.id 
-        ? { 
-            ...p, 
-            mevcutStok: newStock,
-            toplamGiris: stockActionType === 'giris' ? p.toplamGiris + quantity : p.toplamGiris,
-            toplamCikis: stockActionType === 'cikis' ? p.toplamCikis + quantity : p.toplamCikis,
-            uyari: newStock < p.minStok,
-            sonIslemTarihi: new Date().toISOString().split('T')[0],
-          } 
-        : p
-    ));
-
-    // Add movement record
-    const newMovement: StockMovement = {
-      id: Date.now().toString(),
+    await addMovement({
       productId: selectedProduct.id,
-      productName: selectedProduct.urunAdi,
       type: stockActionType,
       quantity,
       date: new Date().toISOString().split('T')[0],
       time: new Date().toTimeString().slice(0, 5),
-      handledBy: 'Kullanıcı',
+      handledBy: user?.email || 'Kullanıcı',
       note: note || undefined,
-    };
-    setMovements(prev => [newMovement, ...prev]);
+    });
 
-    toast.success(
-      stockActionType === 'giris' 
-        ? `${quantity} adet stok girişi yapıldı` 
-        : `${quantity} adet stok çıkışı yapıldı`
-    );
+    // Refresh products to get updated stock
+    refreshProducts();
   };
 
-  const handleAddMovement = (data: {
+  const handleAddMovement = async (data: {
     productId: string;
     type: 'giris' | 'cikis';
     quantity: number;
@@ -118,46 +88,8 @@ const Index = () => {
     handledBy: string;
     note?: string;
   }) => {
-    const product = products.find(p => p.id === data.productId);
-    if (!product) return;
-
-    // Update product stock
-    const newStock = data.type === 'giris' 
-      ? product.mevcutStok + data.quantity 
-      : product.mevcutStok - data.quantity;
-
-    setProducts(prev => prev.map(p => 
-      p.id === data.productId 
-        ? { 
-            ...p, 
-            mevcutStok: newStock,
-            toplamGiris: data.type === 'giris' ? p.toplamGiris + data.quantity : p.toplamGiris,
-            toplamCikis: data.type === 'cikis' ? p.toplamCikis + data.quantity : p.toplamCikis,
-            uyari: newStock < p.minStok,
-            sonIslemTarihi: data.date,
-          } 
-        : p
-    ));
-
-    // Add movement record
-    const newMovement: StockMovement = {
-      id: Date.now().toString(),
-      productId: data.productId,
-      productName: product.urunAdi,
-      type: data.type,
-      quantity: data.quantity,
-      date: data.date,
-      time: data.time,
-      handledBy: data.handledBy,
-      note: data.note,
-    };
-    setMovements(prev => [newMovement, ...prev]);
-
-    toast.success(
-      data.type === 'giris' 
-        ? `${data.quantity} adet stok girişi yapıldı` 
-        : `${data.quantity} adet stok çıkışı yapıldı`
-    );
+    await addMovement(data);
+    refreshProducts();
   };
 
   const handleViewProduct = (id: string) => {
@@ -174,19 +106,21 @@ const Index = () => {
   };
 
   const handleScanBarcodeNotFound = (barcode: string) => {
-    // Open new product modal with barcode pre-filled
     setSelectedProduct(null);
     setProductModalOpen(true);
-    // The barcode will be shown in toast, user can add it manually
   };
 
   const handleAddNewProductFromMovement = (barcode: string) => {
-    // Open new product modal with barcode pre-filled from movement page
     setSelectedProduct(null);
     setProductModalOpen(true);
     toast.info('Yeni ürün ekleyin', {
       description: `Barkod: ${barcode} - Lütfen ürün bilgilerini doldurun`,
     });
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    toast.success('Çıkış yapıldı');
   };
 
   const viewTitles: Record<ViewMode, string> = {
@@ -197,9 +131,22 @@ const Index = () => {
     alerts: 'Stok Uyarıları',
   };
 
+  const isLoading = productsLoading || movementsLoading;
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Veriler yükleniyor...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Sidebar */}
+      {/* Mobile Sidebar */}
       <div className={cn(
         'fixed inset-0 z-50 lg:hidden transition-opacity duration-300',
         mobileMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
@@ -229,6 +176,7 @@ const Index = () => {
         </div>
       </div>
 
+      {/* Desktop Sidebar */}
       <div className="hidden lg:block">
         <Sidebar 
           currentView={currentView} 
@@ -251,9 +199,16 @@ const Index = () => {
         />
 
         <main className="p-4 md:p-6">
-          {/* Page Title */}
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold text-foreground">{viewTitles[currentView]}</h1>
+          {/* Page Title with Sign Out */}
+          <div className="mb-6 flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">{viewTitles[currentView]}</h1>
+              <p className="text-sm text-muted-foreground mt-1">{user?.email}</p>
+            </div>
+            <Button variant="outline" size="sm" onClick={handleSignOut}>
+              <LogOut className="w-4 h-4 mr-2" />
+              Çıkış
+            </Button>
           </div>
 
           {/* Content */}

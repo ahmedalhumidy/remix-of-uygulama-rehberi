@@ -1,0 +1,161 @@
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { Product } from '@/types/stock';
+import { toast } from 'sonner';
+
+export function useProducts() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchProducts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const mappedProducts: Product[] = (data || []).map(p => ({
+        id: p.id,
+        urunKodu: p.urun_kodu,
+        urunAdi: p.urun_adi,
+        rafKonum: p.raf_konum,
+        barkod: p.barkod || undefined,
+        acilisStok: p.acilis_stok,
+        toplamGiris: p.toplam_giris,
+        toplamCikis: p.toplam_cikis,
+        mevcutStok: p.mevcut_stok,
+        minStok: p.min_stok,
+        uyari: p.uyari,
+        sonIslemTarihi: p.son_islem_tarihi || undefined,
+        not: p.notes || undefined,
+      }));
+
+      setProducts(mappedProducts);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      toast.error('Ürünler yüklenirken hata oluştu');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  const addProduct = async (productData: Omit<Product, 'id'>) => {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .insert({
+          urun_kodu: productData.urunKodu,
+          urun_adi: productData.urunAdi,
+          raf_konum: productData.rafKonum,
+          barkod: productData.barkod || null,
+          acilis_stok: productData.acilisStok,
+          toplam_giris: productData.toplamGiris,
+          toplam_cikis: productData.toplamCikis,
+          mevcut_stok: productData.mevcutStok,
+          min_stok: productData.minStok,
+          uyari: productData.uyari,
+          notes: productData.not || null,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const newProduct: Product = {
+        id: data.id,
+        urunKodu: data.urun_kodu,
+        urunAdi: data.urun_adi,
+        rafKonum: data.raf_konum,
+        barkod: data.barkod || undefined,
+        acilisStok: data.acilis_stok,
+        toplamGiris: data.toplam_giris,
+        toplamCikis: data.toplam_cikis,
+        mevcutStok: data.mevcut_stok,
+        minStok: data.min_stok,
+        uyari: data.uyari,
+        sonIslemTarihi: data.son_islem_tarihi || undefined,
+        not: data.notes || undefined,
+      };
+
+      setProducts(prev => [newProduct, ...prev]);
+      toast.success('Yeni ürün eklendi');
+      return newProduct;
+    } catch (error) {
+      console.error('Error adding product:', error);
+      toast.error('Ürün eklenirken hata oluştu');
+      return null;
+    }
+  };
+
+  const updateProduct = async (productData: Product) => {
+    try {
+      const { error } = await supabase
+        .from('products')
+        .update({
+          urun_kodu: productData.urunKodu,
+          urun_adi: productData.urunAdi,
+          raf_konum: productData.rafKonum,
+          barkod: productData.barkod || null,
+          acilis_stok: productData.acilisStok,
+          toplam_giris: productData.toplamGiris,
+          toplam_cikis: productData.toplamCikis,
+          mevcut_stok: productData.mevcutStok,
+          min_stok: productData.minStok,
+          uyari: productData.uyari,
+          notes: productData.not || null,
+        })
+        .eq('id', productData.id);
+
+      if (error) throw error;
+
+      setProducts(prev => prev.map(p => p.id === productData.id ? productData : p));
+      toast.success('Ürün güncellendi');
+      return true;
+    } catch (error) {
+      console.error('Error updating product:', error);
+      toast.error('Ürün güncellenirken hata oluştu');
+      return false;
+    }
+  };
+
+  const deleteProduct = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('products')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      const product = products.find(p => p.id === id);
+      setProducts(prev => prev.filter(p => p.id !== id));
+      toast.success(`${product?.urunAdi || 'Ürün'} silindi`);
+      return true;
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      toast.error('Ürün silinirken hata oluştu');
+      return false;
+    }
+  };
+
+  const refreshProducts = () => {
+    setLoading(true);
+    fetchProducts();
+  };
+
+  return {
+    products,
+    loading,
+    addProduct,
+    updateProduct,
+    deleteProduct,
+    refreshProducts,
+    setProducts,
+  };
+}
