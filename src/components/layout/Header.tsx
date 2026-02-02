@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScanButton } from '@/components/scanner/ScanButton';
 import { Product } from '@/types/stock';
+import { useAuth } from '@/hooks/useAuth';
 
 interface HeaderProps {
   searchQuery: string;
@@ -25,6 +26,7 @@ export function Header({
   onProductFound,
   onBarcodeNotFound,
 }: HeaderProps) {
+  const { isAdmin } = useAuth();
   return (
     <header className="sticky top-0 z-30 bg-card/80 backdrop-blur-lg border-b border-border">
       <div className="flex items-center justify-between px-4 md:px-6 h-16">
@@ -67,11 +69,13 @@ export function Header({
             )}
           </button>
 
-          {/* Add Product */}
-          <Button onClick={onAddProduct} className="gap-2 gradient-accent border-0 hover:opacity-90 transition-opacity">
-            <Plus className="w-4 h-4" />
-            <span className="hidden sm:inline">Yeni Ürün</span>
-          </Button>
+          {/* Add Product - Admin Only */}
+          {isAdmin && (
+            <Button onClick={onAddProduct} className="gap-2 gradient-accent border-0 hover:opacity-90 transition-opacity">
+              <Plus className="w-4 h-4" />
+              <span className="hidden sm:inline">Yeni Ürün</span>
+            </Button>
+          )}
         </div>
       </div>
     </header>

@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/hooks/useAuth';
 
 interface ProductListProps {
   products: Product[];
@@ -30,6 +31,7 @@ export function ProductList({
   onViewProduct,
   onStockAction 
 }: ProductListProps) {
+  const { isAdmin } = useAuth();
   const [sortField, setSortField] = useState<SortField>('urunAdi');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
 
@@ -182,17 +184,21 @@ export function ProductList({
                               <Eye className="w-4 h-4 mr-2" />
                               Görüntüle
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => onEditProduct(product)}>
-                              <Edit2 className="w-4 h-4 mr-2" />
-                              Düzenle
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => onDeleteProduct(product.id)}
-                              className="text-destructive focus:text-destructive"
-                            >
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              Sil
-                            </DropdownMenuItem>
+                            {isAdmin && (
+                              <>
+                                <DropdownMenuItem onClick={() => onEditProduct(product)}>
+                                  <Edit2 className="w-4 h-4 mr-2" />
+                                  Düzenle
+                                </DropdownMenuItem>
+                                <DropdownMenuItem 
+                                  onClick={() => onDeleteProduct(product.id)}
+                                  className="text-destructive focus:text-destructive"
+                                >
+                                  <Trash2 className="w-4 h-4 mr-2" />
+                                  Sil
+                                </DropdownMenuItem>
+                              </>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
@@ -275,17 +281,21 @@ export function ProductList({
                       <Eye className="w-4 h-4 mr-2" />
                       Görüntüle
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => onEditProduct(product)}>
-                      <Edit2 className="w-4 h-4 mr-2" />
-                      Düzenle
-                    </DropdownMenuItem>
-                    <DropdownMenuItem 
-                      onClick={() => onDeleteProduct(product.id)}
-                      className="text-destructive focus:text-destructive"
-                    >
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Sil
-                    </DropdownMenuItem>
+                    {isAdmin && (
+                      <>
+                        <DropdownMenuItem onClick={() => onEditProduct(product)}>
+                          <Edit2 className="w-4 h-4 mr-2" />
+                          Düzenle
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => onDeleteProduct(product.id)}
+                          className="text-destructive focus:text-destructive"
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Sil
+                        </DropdownMenuItem>
+                      </>
+                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
