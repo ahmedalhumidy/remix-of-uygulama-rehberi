@@ -7,6 +7,7 @@ import {
   Settings,
   Users
 } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
 import { ViewMode } from '@/types/stock';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
@@ -18,18 +19,27 @@ interface SidebarProps {
 }
 
 const menuItems = [
-  { id: 'dashboard' as ViewMode, icon: LayoutDashboard, label: 'Kontrol Paneli', adminOnly: false },
-  { id: 'products' as ViewMode, icon: Package, label: 'Ürünler', adminOnly: false },
-  { id: 'movements' as ViewMode, icon: ArrowLeftRight, label: 'Stok Hareketleri', adminOnly: false },
-  { id: 'locations' as ViewMode, icon: MapPin, label: 'Konumlar', adminOnly: false },
-  { id: 'alerts' as ViewMode, icon: AlertTriangle, label: 'Uyarılar', adminOnly: false },
-  { id: 'users' as ViewMode, icon: Users, label: 'Kullanıcılar', adminOnly: true },
+  { id: 'dashboard' as ViewMode, path: '/', icon: LayoutDashboard, label: 'Kontrol Paneli', adminOnly: false },
+  { id: 'products' as ViewMode, path: '/products', icon: Package, label: 'Ürünler', adminOnly: false },
+  { id: 'movements' as ViewMode, path: '/movements', icon: ArrowLeftRight, label: 'Stok Hareketleri', adminOnly: false },
+  { id: 'locations' as ViewMode, path: '/locations', icon: MapPin, label: 'Konumlar', adminOnly: false },
+  { id: 'alerts' as ViewMode, path: '/alerts', icon: AlertTriangle, label: 'Uyarılar', adminOnly: false },
+  { id: 'users' as ViewMode, path: '/users', icon: Users, label: 'Kullanıcılar', adminOnly: true },
 ];
 
 export function Sidebar({ currentView, onViewChange, alertCount }: SidebarProps) {
   const { isAdmin } = useAuth();
+  const location = useLocation();
   
   const visibleMenuItems = menuItems.filter(item => !item.adminOnly || isAdmin);
+
+  // Determine active state from URL for reliability
+  const getIsActive = (path: string) => {
+    if (path === '/') {
+      return location.pathname === '/';
+    }
+    return location.pathname === path;
+  };
 
   return (
     <aside className="fixed left-0 top-0 z-40 h-screen w-64 bg-sidebar border-r border-sidebar-border flex flex-col">
@@ -46,17 +56,14 @@ export function Sidebar({ currentView, onViewChange, alertCount }: SidebarProps)
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {visibleMenuItems.map((item) => {
           const Icon = item.icon;
-          const isActive = currentView === item.id;
+          const isActive = getIsActive(item.path);
           const showBadge = item.id === 'alerts' && alertCount > 0;
 
           return (
-            <a
+            <Link
               key={item.id}
-              href={item.id === 'dashboard' ? '/' : `/${item.id}`}
-              onClick={(e) => {
-                e.preventDefault();
-                onViewChange(item.id);
-              }}
+              to={item.path}
+              onClick={() => onViewChange(item.id)}
               className={cn(
                 'sidebar-link w-full relative',
                 isActive && 'sidebar-link-active'
@@ -69,7 +76,7 @@ export function Sidebar({ currentView, onViewChange, alertCount }: SidebarProps)
                   {alertCount}
                 </span>
               )}
-            </a>
+            </Link>
           );
         })}
       </nav>
