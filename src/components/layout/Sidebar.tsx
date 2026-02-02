@@ -6,7 +6,8 @@ import {
   AlertTriangle,
   UserCog,
   Users,
-  ScrollText
+  ScrollText,
+  BarChart3
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { ViewMode } from '@/types/stock';
@@ -33,6 +34,7 @@ const menuItems: MenuItem[] = [
   { id: 'movements', path: '/movements', icon: ArrowLeftRight, label: 'Stok Hareketleri' },
   { id: 'locations', path: '/locations', icon: MapPin, label: 'Konumlar' },
   { id: 'alerts', path: '/alerts', icon: AlertTriangle, label: 'Uyarılar' },
+  { id: 'reports', path: '/reports', icon: BarChart3, label: 'Raporlar', requiredPermission: 'reports.view' },
   { id: 'users', path: '/users', icon: Users, label: 'Kullanıcılar', requiredPermission: 'users.view' },
   { id: 'logs', path: '/logs', icon: ScrollText, label: 'Denetim Günlüğü', requiredPermission: 'logs.view' },
   { id: 'profile', path: '/profile', icon: UserCog, label: 'Profil Ayarları' },

@@ -10,6 +10,7 @@ import { LocationView } from '@/components/locations/LocationView';
 import { AlertList } from '@/components/alerts/AlertList';
 import { UserManagement } from '@/components/users/UserManagement';
 import { AuditLogList } from '@/components/users/AuditLogList';
+import { ReportsPage } from '@/components/reports/ReportsPage';
 import { ProfileSettings } from '@/components/profile/ProfileSettings';
 import { Product, ViewMode } from '@/types/stock';
 import { useProducts } from '@/hooks/useProducts';
@@ -133,6 +134,7 @@ const Index = () => {
     alerts: 'Stok Uyarıları',
     users: 'Kullanıcı Yönetimi',
     logs: 'Denetim Günlüğü',
+    reports: 'Raporlar ve Analiz',
     profile: 'Profil Ayarları',
   };
 
@@ -269,6 +271,10 @@ const Index = () => {
 
           {currentView === 'logs' && (
             <AuditLogList />
+          )}
+
+          {currentView === 'reports' && (
+            <ReportsPage products={products} movements={movements} />
           )}
 
           {currentView === 'profile' && (
