@@ -45,13 +45,13 @@
 
     --radius: 0.75rem;
 
-    --sidebar-background: 210 55% 20%;
+    --sidebar-background: 215 30% 14%;
     --sidebar-foreground: 210 20% 95%;
     --sidebar-primary: 24 95% 53%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 55% 28%;
+    --sidebar-accent: 215 25% 20%;
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 210 55% 30%;
+    --sidebar-border: 215 25% 22%;
     --sidebar-ring: 24 95% 53%;
 
     /* Custom gradients */
@@ -145,13 +145,24 @@
 
 @layer components {
   .stat-card {
-    @apply bg-card rounded-xl p-6 border border-border transition-all duration-300;
-    box-shadow: var(--shadow-card);
+    @apply bg-card rounded-xl p-5 border border-border transition-all duration-300;
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.04), 0 1px 2px -1px rgb(0 0 0 / 0.04);
   }
 
   .stat-card:hover {
-    box-shadow: var(--shadow-card-hover);
+    box-shadow: 0 8px 16px -4px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.04);
+    transform: translateY(-1px);
+  }
+
+  .stat-card-enhanced {
+    @apply bg-card rounded-xl p-5 border border-border/60 transition-all duration-300;
+    box-shadow: 0 2px 8px -2px rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.04);
+  }
+
+  .stat-card-enhanced:hover {
+    box-shadow: 0 12px 24px -8px rgb(0 0 0 / 0.1), 0 4px 8px -4px rgb(0 0 0 / 0.06);
     transform: translateY(-2px);
+    border-color: hsl(var(--border));
   }
 
   .gradient-primary {
@@ -171,11 +182,23 @@
   }
 
   .sidebar-link {
-    @apply flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent;
+    @apply relative flex items-center gap-3.5 px-4 py-2.5 rounded-lg transition-all duration-200 text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/60;
   }
 
   .sidebar-link-active {
     @apply bg-sidebar-accent text-sidebar-foreground font-medium;
+  }
+
+  .sidebar-link-active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 60%;
+    background: hsl(var(--sidebar-primary));
+    border-radius: 0 4px 4px 0;
   }
 
   .input-search {

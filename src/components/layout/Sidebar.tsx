@@ -67,18 +67,24 @@ export function Sidebar({ currentView, onViewChange, alertCount }: SidebarProps)
   const logoUrl = organization?.logo_url || '/favicon.png';
 
   return (
-    <aside className="fixed left-0 top-0 z-40 h-screen w-64 bg-sidebar border-r border-sidebar-border flex flex-col">
+    <aside className="fixed left-0 top-0 z-40 h-screen w-64 bg-sidebar border-r border-sidebar-border/50 flex flex-col shadow-xl">
       {/* Logo */}
-      <div className="flex items-center gap-3 px-6 py-5 border-b border-sidebar-border">
-        <img src={logoUrl} alt={`${companyName} Logo`} className="w-10 h-10 rounded-xl object-cover" />
-        <div>
-          <h1 className="font-bold text-lg text-sidebar-foreground">{companyName}</h1>
-          <p className="text-xs text-sidebar-foreground/60">Stok Takip Sistemi</p>
+      <div className="flex items-center gap-3 px-5 py-4 border-b border-sidebar-border/50">
+        <div className="relative">
+          <img 
+            src={logoUrl} 
+            alt={`${companyName} Logo`} 
+            className="w-10 h-10 rounded-xl object-cover ring-2 ring-sidebar-accent/30" 
+          />
+        </div>
+        <div className="min-w-0">
+          <h1 className="font-bold text-base text-sidebar-foreground truncate">{companyName}</h1>
+          <p className="text-[10px] text-sidebar-foreground/50 uppercase tracking-wider">Stok Takip</p>
         </div>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+      <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
         {visibleMenuItems.map((item) => {
           const Icon = item.icon;
           const isActive = getIsActive(item.path);
@@ -90,14 +96,14 @@ export function Sidebar({ currentView, onViewChange, alertCount }: SidebarProps)
               to={item.path}
               onClick={() => onViewChange(item.id)}
               className={cn(
-                'sidebar-link w-full relative',
+                'sidebar-link w-full',
                 isActive && 'sidebar-link-active'
               )}
             >
-              <Icon className="w-5 h-5" />
-              <span>{item.label}</span>
+              <Icon className="w-[18px] h-[18px] flex-shrink-0" />
+              <span className="text-sm">{item.label}</span>
               {showBadge && (
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-destructive text-destructive-foreground text-xs font-bold">
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold shadow-sm">
                   {alertCount}
                 </span>
               )}
@@ -105,6 +111,13 @@ export function Sidebar({ currentView, onViewChange, alertCount }: SidebarProps)
           );
         })}
       </nav>
+
+      {/* Footer */}
+      <div className="px-4 py-3 border-t border-sidebar-border/50">
+        <p className="text-[10px] text-sidebar-foreground/40 text-center">
+          © 2024 {companyName}
+        </p>
+      </div>
     </aside>
   );
 }
