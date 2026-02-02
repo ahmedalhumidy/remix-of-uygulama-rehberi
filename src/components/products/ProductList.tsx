@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
-import { useAuth } from '@/hooks/useAuth';
+import { usePermissions } from '@/hooks/usePermissions';
 
 interface ProductListProps {
   products: Product[];
@@ -31,7 +31,11 @@ export function ProductList({
   onViewProduct,
   onStockAction 
 }: ProductListProps) {
-  const { isAdmin } = useAuth();
+  const { hasPermission } = usePermissions();
+  const canEditProducts = hasPermission('products.update');
+  const canDeleteProducts = hasPermission('products.delete');
+  const canCreateMovements = hasPermission('stock_movements.create');
+
   const [sortField, setSortField] = useState<SortField>('urunAdi');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
 
@@ -175,22 +179,26 @@ export function ProductList({
                     </td>
                     <td className="py-4 px-4 text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-8 text-success hover:bg-success/10 hover:text-success"
-                          onClick={() => onStockAction(product, 'giris')}
-                        >
-                          +
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                          onClick={() => onStockAction(product, 'cikis')}
-                        >
-                          −
-                        </Button>
+                        {canCreateMovements && (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 text-success hover:bg-success/10 hover:text-success"
+                              onClick={() => onStockAction(product, 'giris')}
+                            >
+                              +
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                              onClick={() => onStockAction(product, 'cikis')}
+                            >
+                              −
+                            </Button>
+                          </>
+                        )}
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
@@ -202,20 +210,20 @@ export function ProductList({
                               <Eye className="w-4 h-4 mr-2" />
                               Görüntüle
                             </DropdownMenuItem>
-                            {isAdmin && (
-                              <>
-                                <DropdownMenuItem onClick={() => onEditProduct(product)}>
-                                  <Edit2 className="w-4 h-4 mr-2" />
-                                  Düzenle
-                                </DropdownMenuItem>
-                                <DropdownMenuItem 
-                                  onClick={() => onDeleteProduct(product.id)}
-                                  className="text-destructive focus:text-destructive"
-                                >
-                                  <Trash2 className="w-4 h-4 mr-2" />
-                                  Sil
-                                </DropdownMenuItem>
-                              </>
+                            {canEditProducts && (
+                              <DropdownMenuItem onClick={() => onEditProduct(product)}>
+                                <Edit2 className="w-4 h-4 mr-2" />
+                                Düzenle
+                              </DropdownMenuItem>
+                            )}
+                            {canDeleteProducts && (
+                              <DropdownMenuItem 
+                                onClick={() => onDeleteProduct(product.id)}
+                                className="text-destructive focus:text-destructive"
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Sil
+                              </DropdownMenuItem>
                             )}
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -275,20 +283,24 @@ export function ProductList({
               </div>
               
               <div className="flex items-center gap-2 pt-3 border-t border-border">
-                <Button
-                  size="sm"
-                  className="flex-1 bg-success/10 text-success hover:bg-success/20 border-0"
-                  onClick={() => onStockAction(product, 'giris')}
-                >
-                  + Giriş
-                </Button>
-                <Button
-                  size="sm"
-                  className="flex-1 bg-destructive/10 text-destructive hover:bg-destructive/20 border-0"
-                  onClick={() => onStockAction(product, 'cikis')}
-                >
-                  − Çıkış
-                </Button>
+                {canCreateMovements && (
+                  <>
+                    <Button
+                      size="sm"
+                      className="flex-1 bg-success/10 text-success hover:bg-success/20 border-0"
+                      onClick={() => onStockAction(product, 'giris')}
+                    >
+                      + Giriş
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="flex-1 bg-destructive/10 text-destructive hover:bg-destructive/20 border-0"
+                      onClick={() => onStockAction(product, 'cikis')}
+                    >
+                      − Çıkış
+                    </Button>
+                  </>
+                )}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" size="sm">
@@ -300,20 +312,20 @@ export function ProductList({
                       <Eye className="w-4 h-4 mr-2" />
                       Görüntüle
                     </DropdownMenuItem>
-                    {isAdmin && (
-                      <>
-                        <DropdownMenuItem onClick={() => onEditProduct(product)}>
-                          <Edit2 className="w-4 h-4 mr-2" />
-                          Düzenle
-                        </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          onClick={() => onDeleteProduct(product.id)}
-                          className="text-destructive focus:text-destructive"
-                        >
-                          <Trash2 className="w-4 h-4 mr-2" />
-                          Sil
-                        </DropdownMenuItem>
-                      </>
+                    {canEditProducts && (
+                      <DropdownMenuItem onClick={() => onEditProduct(product)}>
+                        <Edit2 className="w-4 h-4 mr-2" />
+                        Düzenle
+                      </DropdownMenuItem>
+                    )}
+                    {canDeleteProducts && (
+                      <DropdownMenuItem 
+                        onClick={() => onDeleteProduct(product.id)}
+                        className="text-destructive focus:text-destructive"
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Sil
+                      </DropdownMenuItem>
                     )}
                   </DropdownMenuContent>
                 </DropdownMenu>

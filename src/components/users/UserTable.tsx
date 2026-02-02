@@ -1,8 +1,15 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Shield, ShieldOff, Loader2, Trash2, Ban, CheckCircle } from 'lucide-react';
-import { UserWithRole } from '@/types/stock';
+import { Loader2, Trash2, Ban, CheckCircle, ChevronDown } from 'lucide-react';
+import { UserWithRole, AppRole } from '@/types/stock';
+import { usePermissions } from '@/hooks/usePermissions';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface UserTableProps {
   users: UserWithRole[];
@@ -10,7 +17,7 @@ interface UserTableProps {
   updating: string | null;
   deleting: string | null;
   disabling: string | null;
-  onToggleRole: (userId: string, currentRole: 'admin' | 'employee') => void;
+  onChangeRole: (userId: string, newRole: AppRole) => void;
   onToggleDisabled: (user: UserWithRole) => void;
   onDeleteConfirm: (user: UserWithRole) => void;
 }
@@ -21,10 +28,12 @@ export function UserTable({
   updating,
   deleting,
   disabling,
-  onToggleRole,
+  onChangeRole,
   onToggleDisabled,
   onDeleteConfirm,
 }: UserTableProps) {
+  const { roleLabels, allRoles } = usePermissions();
+
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return '-';
     return new Date(dateStr).toLocaleDateString('tr-TR', {
@@ -36,8 +45,16 @@ export function UserTable({
     });
   };
 
+  const getRoleBadgeVariant = (role: AppRole): 'default' | 'secondary' | 'outline' => {
+    switch (role) {
+      case 'admin': return 'default';
+      case 'manager': return 'secondary';
+      default: return 'outline';
+    }
+  };
+
   return (
-    <div className="rounded-md border">
+    <div className="rounded-md border overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow>
@@ -62,12 +79,40 @@ export function UserTable({
                 </div>
               </TableCell>
               <TableCell>
-                <Badge 
-                  variant={u.role === 'admin' ? 'default' : 'secondary'}
-                  className={u.role === 'admin' ? 'bg-primary' : ''}
-                >
-                  {u.role === 'admin' ? 'Yönetici' : 'Çalışan'}
-                </Badge>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="gap-1 h-auto py-1"
+                      disabled={updating === u.user_id || u.user_id === currentUserId}
+                    >
+                      <Badge variant={getRoleBadgeVariant(u.role)}>
+                        {roleLabels[u.role] || u.role}
+                      </Badge>
+                      {updating === u.user_id ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <ChevronDown className="w-3 h-3" />
+                      )}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start">
+                    {allRoles.map((role) => (
+                      <DropdownMenuItem
+                        key={role}
+                        onClick={() => onChangeRole(u.user_id, role)}
+                        disabled={role === u.role}
+                        className={role === u.role ? 'bg-muted' : ''}
+                      >
+                        <Badge variant={getRoleBadgeVariant(role)} className="mr-2">
+                          {roleLabels[role]}
+                        </Badge>
+                        {role === u.role && <span className="text-xs text-muted-foreground">(Mevcut)</span>}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </TableCell>
               <TableCell>
                 <Badge variant={u.is_disabled ? 'destructive' : 'outline'}>
@@ -82,21 +127,6 @@ export function UserTable({
               </TableCell>
               <TableCell>
                 <div className="flex items-center justify-center gap-1">
-                  <Button
-                    variant={u.role === 'admin' ? 'destructive' : 'default'}
-                    size="sm"
-                    onClick={() => onToggleRole(u.user_id, u.role)}
-                    disabled={updating === u.user_id || u.user_id === currentUserId}
-                    title={u.role === 'admin' ? 'Yetkiyi Kaldır' : 'Yönetici Yap'}
-                  >
-                    {updating === u.user_id ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : u.role === 'admin' ? (
-                      <ShieldOff className="w-4 h-4" />
-                    ) : (
-                      <Shield className="w-4 h-4" />
-                    )}
-                  </Button>
                   <Button
                     variant={u.is_disabled ? 'outline' : 'secondary'}
                     size="sm"

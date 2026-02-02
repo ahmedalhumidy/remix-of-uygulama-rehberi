@@ -49,16 +49,24 @@ serve(async (req) => {
       );
     }
 
-    // Check if requesting user is admin
+    // Check if requesting user has users.manage permission
     const { data: roleData, error: roleError } = await supabaseAdmin
       .from("user_roles")
       .select("role")
       .eq("user_id", requestingUser.id)
       .single();
 
-    if (roleError || roleData?.role !== "admin") {
+    // Check permission based on role_permissions table
+    const { data: permData } = await supabaseAdmin
+      .from("role_permissions")
+      .select("permission")
+      .eq("role", roleData?.role || "viewer")
+      .eq("permission", "users.manage")
+      .maybeSingle();
+
+    if (roleError || !permData) {
       return new Response(
-        JSON.stringify({ error: "Only admins can invite users" }),
+        JSON.stringify({ error: "Only users with manage permission can invite users" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -98,11 +106,12 @@ serve(async (req) => {
       );
     }
 
-    // Update role if admin was requested (default is employee from trigger)
-    if (role === 'admin') {
+    // Update role if specified (default is staff from trigger which was employee before)
+    const validRoles = ['admin', 'manager', 'staff', 'viewer'];
+    if (role && validRoles.includes(role) && role !== 'staff') {
       await supabaseAdmin
         .from("user_roles")
-        .update({ role: 'admin' })
+        .update({ role })
         .eq("user_id", newUserId);
     }
 

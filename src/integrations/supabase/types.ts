@@ -139,6 +139,24 @@ export type Database = {
         }
         Relationships: []
       }
+      role_permissions: {
+        Row: {
+          id: string
+          permission: Database["public"]["Enums"]["permission_type"]
+          role: Database["public"]["Enums"]["app_role"]
+        }
+        Insert: {
+          id?: string
+          permission: Database["public"]["Enums"]["permission_type"]
+          role: Database["public"]["Enums"]["app_role"]
+        }
+        Update: {
+          id?: string
+          permission?: Database["public"]["Enums"]["permission_type"]
+          role?: Database["public"]["Enums"]["app_role"]
+        }
+        Relationships: []
+      }
       stock_movements: {
         Row: {
           created_at: string
@@ -216,6 +234,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_user_role: {
+        Args: { _user_id: string }
+        Returns: Database["public"]["Enums"]["app_role"]
+      }
+      has_permission: {
+        Args: {
+          _permission: Database["public"]["Enums"]["permission_type"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -225,7 +254,17 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "employee"
+      app_role: "admin" | "employee" | "manager" | "staff" | "viewer"
+      permission_type:
+        | "products.view"
+        | "products.create"
+        | "products.update"
+        | "products.delete"
+        | "stock_movements.view"
+        | "stock_movements.create"
+        | "users.view"
+        | "users.manage"
+        | "logs.view"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -353,7 +392,18 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "employee"],
+      app_role: ["admin", "employee", "manager", "staff", "viewer"],
+      permission_type: [
+        "products.view",
+        "products.create",
+        "products.update",
+        "products.delete",
+        "stock_movements.view",
+        "stock_movements.create",
+        "users.view",
+        "users.manage",
+        "logs.view",
+      ],
     },
   },
 } as const
