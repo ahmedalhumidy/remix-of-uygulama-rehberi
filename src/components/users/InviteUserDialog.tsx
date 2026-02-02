@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
   DialogContent,
@@ -21,6 +22,7 @@ import { Loader2, UserPlus, Copy, Check } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuditLog } from '@/hooks/useAuditLog';
+import { usePermissions, AppRole } from '@/hooks/usePermissions';
 
 interface InviteUserDialogProps {
   open: boolean;
@@ -31,11 +33,12 @@ interface InviteUserDialogProps {
 export function InviteUserDialog({ open, onOpenChange, onUserInvited }: InviteUserDialogProps) {
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
-  const [role, setRole] = useState<'admin' | 'employee'>('employee');
+  const [role, setRole] = useState<AppRole>('staff');
   const [loading, setLoading] = useState(false);
   const [createdCredentials, setCreatedCredentials] = useState<{ email: string; password: string } | null>(null);
   const [copied, setCopied] = useState(false);
   const { logAction } = useAuditLog();
+  const { roleLabels, roleDescriptions, allRoles } = usePermissions();
 
   const generatePassword = () => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%';
@@ -100,10 +103,18 @@ export function InviteUserDialog({ open, onOpenChange, onUserInvited }: InviteUs
   const handleClose = () => {
     setEmail('');
     setFullName('');
-    setRole('employee');
+    setRole('staff');
     setCreatedCredentials(null);
     setCopied(false);
     onOpenChange(false);
+  };
+
+  const getRoleBadgeVariant = (r: AppRole): 'default' | 'secondary' | 'outline' => {
+    switch (r) {
+      case 'admin': return 'default';
+      case 'manager': return 'secondary';
+      default: return 'outline';
+    }
   };
 
   return (
@@ -165,13 +176,23 @@ export function InviteUserDialog({ open, onOpenChange, onUserInvited }: InviteUs
               </div>
               <div className="space-y-2">
                 <Label htmlFor="role">Yetki</Label>
-                <Select value={role} onValueChange={(v) => setRole(v as 'admin' | 'employee')}>
+                <Select value={role} onValueChange={(v) => setRole(v as AppRole)}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="employee">Çalışan</SelectItem>
-                    <SelectItem value="admin">Yönetici</SelectItem>
+                    {allRoles.map((r) => (
+                      <SelectItem key={r} value={r}>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={getRoleBadgeVariant(r)} className="text-xs">
+                            {roleLabels[r]}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            {roleDescriptions[r]}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

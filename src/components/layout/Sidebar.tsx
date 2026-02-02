@@ -11,7 +11,7 @@ import {
 import { Link, useLocation } from 'react-router-dom';
 import { ViewMode } from '@/types/stock';
 import { cn } from '@/lib/utils';
-import { useAuth } from '@/hooks/useAuth';
+import { usePermissions, PermissionType } from '@/hooks/usePermissions';
 
 interface SidebarProps {
   currentView: ViewMode;
@@ -19,22 +19,33 @@ interface SidebarProps {
   alertCount: number;
 }
 
-const menuItems = [
-  { id: 'dashboard' as ViewMode, path: '/', icon: LayoutDashboard, label: 'Kontrol Paneli', adminOnly: false },
-  { id: 'products' as ViewMode, path: '/products', icon: Package, label: 'Ürünler', adminOnly: false },
-  { id: 'movements' as ViewMode, path: '/movements', icon: ArrowLeftRight, label: 'Stok Hareketleri', adminOnly: false },
-  { id: 'locations' as ViewMode, path: '/locations', icon: MapPin, label: 'Konumlar', adminOnly: false },
-  { id: 'alerts' as ViewMode, path: '/alerts', icon: AlertTriangle, label: 'Uyarılar', adminOnly: false },
-  { id: 'users' as ViewMode, path: '/users', icon: Users, label: 'Kullanıcılar', adminOnly: true },
-  { id: 'logs' as ViewMode, path: '/logs', icon: ScrollText, label: 'Denetim Günlüğü', adminOnly: true },
-  { id: 'profile' as ViewMode, path: '/profile', icon: UserCog, label: 'Profil Ayarları', adminOnly: false },
+interface MenuItem {
+  id: ViewMode;
+  path: string;
+  icon: typeof LayoutDashboard;
+  label: string;
+  requiredPermission?: PermissionType;
+}
+
+const menuItems: MenuItem[] = [
+  { id: 'dashboard', path: '/', icon: LayoutDashboard, label: 'Kontrol Paneli' },
+  { id: 'products', path: '/products', icon: Package, label: 'Ürünler' },
+  { id: 'movements', path: '/movements', icon: ArrowLeftRight, label: 'Stok Hareketleri' },
+  { id: 'locations', path: '/locations', icon: MapPin, label: 'Konumlar' },
+  { id: 'alerts', path: '/alerts', icon: AlertTriangle, label: 'Uyarılar' },
+  { id: 'users', path: '/users', icon: Users, label: 'Kullanıcılar', requiredPermission: 'users.view' },
+  { id: 'logs', path: '/logs', icon: ScrollText, label: 'Denetim Günlüğü', requiredPermission: 'logs.view' },
+  { id: 'profile', path: '/profile', icon: UserCog, label: 'Profil Ayarları' },
 ];
 
 export function Sidebar({ currentView, onViewChange, alertCount }: SidebarProps) {
-  const { isAdmin } = useAuth();
+  const { hasPermission } = usePermissions();
   const location = useLocation();
   
-  const visibleMenuItems = menuItems.filter(item => !item.adminOnly || isAdmin);
+  const visibleMenuItems = menuItems.filter(item => {
+    if (!item.requiredPermission) return true;
+    return hasPermission(item.requiredPermission);
+  });
 
   // Determine active state from URL for reliability
   const getIsActive = (path: string) => {
@@ -83,8 +94,6 @@ export function Sidebar({ currentView, onViewChange, alertCount }: SidebarProps)
           );
         })}
       </nav>
-
-      {/* Footer - removed, profile is now in menu */}
     </aside>
   );
 }

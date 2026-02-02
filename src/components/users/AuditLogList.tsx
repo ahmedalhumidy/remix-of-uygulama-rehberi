@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { usePermissions } from '@/hooks/usePermissions';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -21,7 +21,8 @@ const actionTypeLabels: Record<string, { label: string; variant: 'default' | 'se
 };
 
 export function AuditLogList() {
-  const { isAdmin } = useAuth();
+  const { hasPermission, roleLabels } = usePermissions();
+  const canViewLogs = hasPermission('logs.view');
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -75,10 +76,12 @@ export function AuditLogList() {
   };
 
   useEffect(() => {
-    if (isAdmin) {
+    if (canViewLogs) {
       fetchLogs();
+    } else {
+      setLoading(false);
     }
-  }, [isAdmin]);
+  }, [canViewLogs]);
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('tr-TR', {
@@ -101,7 +104,9 @@ export function AuditLogList() {
     }
     if (log.details) {
       if (log.details.old_role && log.details.new_role) {
-        parts.push(`${log.details.old_role} → ${log.details.new_role}`);
+        const oldLabel = roleLabels[log.details.old_role as keyof typeof roleLabels] || log.details.old_role;
+        const newLabel = roleLabels[log.details.new_role as keyof typeof roleLabels] || log.details.new_role;
+        parts.push(`${oldLabel} → ${newLabel}`);
       }
       if (log.details.quantity) {
         parts.push(`Miktar: ${log.details.quantity}`);
@@ -129,12 +134,12 @@ export function AuditLogList() {
     );
   });
 
-  if (!isAdmin) {
+  if (!canViewLogs) {
     return (
       <Card>
         <CardContent className="p-8 text-center">
           <Shield className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-          <p className="text-muted-foreground">Bu sayfa sadece yöneticiler için</p>
+          <p className="text-muted-foreground">Bu sayfa için yetkiniz yok</p>
         </CardContent>
       </Card>
     );

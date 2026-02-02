@@ -37,11 +37,13 @@ export interface DashboardStats {
 
 export type ViewMode = 'dashboard' | 'products' | 'movements' | 'locations' | 'alerts' | 'users' | 'logs' | 'profile';
 
+export type AppRole = 'admin' | 'manager' | 'staff' | 'viewer';
+
 export interface UserWithRole {
   user_id: string;
   email: string;
   full_name: string;
-  role: 'admin' | 'employee';
+  role: AppRole;
   created_at: string;
   last_sign_in: string | null;
   is_disabled: boolean;

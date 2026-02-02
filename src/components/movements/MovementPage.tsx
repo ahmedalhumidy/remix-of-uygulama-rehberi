@@ -4,7 +4,7 @@ import { Product, StockMovement } from '@/types/stock';
 import { MovementForm } from './MovementForm';
 import { MovementHistory } from './MovementHistory';
 import { cn } from '@/lib/utils';
-import { useAuth } from '@/hooks/useAuth';
+import { usePermissions } from '@/hooks/usePermissions';
 import { Card, CardContent } from '@/components/ui/card';
 
 interface MovementPageProps {
@@ -26,14 +26,15 @@ interface MovementPageProps {
 type Tab = 'form' | 'history';
 
 export function MovementPage({ products, movements, searchQuery, onAddMovement, onAddNewProduct }: MovementPageProps) {
-  const { isAdmin } = useAuth();
-  const [activeTab, setActiveTab] = useState<Tab>(isAdmin ? 'form' : 'history');
+  const { hasPermission } = usePermissions();
+  const canCreateMovements = hasPermission('stock_movements.create');
+  const [activeTab, setActiveTab] = useState<Tab>(canCreateMovements ? 'form' : 'history');
 
   return (
     <div className="space-y-6 animate-slide-up">
       {/* Tab Navigation */}
       <div className="flex gap-2 p-1 bg-muted/50 rounded-xl w-fit">
-        {isAdmin && (
+        {canCreateMovements && (
           <button
             onClick={() => setActiveTab('form')}
             className={cn(
@@ -62,7 +63,7 @@ export function MovementPage({ products, movements, searchQuery, onAddMovement, 
       </div>
 
       {/* Content */}
-      {activeTab === 'form' && isAdmin && (
+      {activeTab === 'form' && canCreateMovements && (
         <div className="max-w-xl">
           <MovementForm 
             products={products} 
@@ -72,11 +73,11 @@ export function MovementPage({ products, movements, searchQuery, onAddMovement, 
         </div>
       )}
 
-      {activeTab === 'form' && !isAdmin && (
+      {activeTab === 'form' && !canCreateMovements && (
         <Card>
           <CardContent className="p-8 text-center">
             <ShieldAlert className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">Hareket ekleme yetkisi sadece yöneticilere aittir</p>
+            <p className="text-muted-foreground">Hareket ekleme yetkiniz bulunmuyor</p>
           </CardContent>
         </Card>
       )}

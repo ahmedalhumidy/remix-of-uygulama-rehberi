@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
+import { usePermissions } from './usePermissions';
 
 type ActionType = 
   | 'role_change' 
@@ -21,9 +22,12 @@ interface LogParams {
 
 export function useAuditLog() {
   const { user } = useAuth();
+  const { hasPermission } = usePermissions();
+
+  const canLog = hasPermission('logs.view');
 
   const logAction = async (params: LogParams) => {
-    if (!user) return;
+    if (!user || !canLog) return;
 
     try {
       const { error } = await supabase
