@@ -9,6 +9,7 @@ const viewRoutes: Record<ViewMode, string> = {
   locations: '/locations',
   alerts: '/alerts',
   users: '/users',
+  profile: '/profile',
 };
 
 const routeToView: Record<string, ViewMode> = {
@@ -18,6 +19,7 @@ const routeToView: Record<string, ViewMode> = {
   '/locations': 'locations',
   '/alerts': 'alerts',
   '/users': 'users',
+  '/profile': 'profile',
 };
 
 export function useCurrentView() {

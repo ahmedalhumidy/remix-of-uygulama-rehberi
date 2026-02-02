@@ -83,6 +83,11 @@ const AppRoutes = () => (
         <Index />
       </ProtectedRoute>
     } />
+    <Route path="/profile" element={
+      <ProtectedRoute>
+        <Index />
+      </ProtectedRoute>
+    } />
     <Route path="*" element={<NotFound />} />
   </Routes>
 );

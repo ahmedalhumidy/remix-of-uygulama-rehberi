@@ -4,7 +4,7 @@ import {
   ArrowLeftRight, 
   MapPin, 
   AlertTriangle,
-  Settings,
+  UserCog,
   Users
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
@@ -25,6 +25,7 @@ const menuItems = [
   { id: 'locations' as ViewMode, path: '/locations', icon: MapPin, label: 'Konumlar', adminOnly: false },
   { id: 'alerts' as ViewMode, path: '/alerts', icon: AlertTriangle, label: 'Uyarılar', adminOnly: false },
   { id: 'users' as ViewMode, path: '/users', icon: Users, label: 'Kullanıcılar', adminOnly: true },
+  { id: 'profile' as ViewMode, path: '/profile', icon: UserCog, label: 'Profil Ayarları', adminOnly: false },
 ];
 
 export function Sidebar({ currentView, onViewChange, alertCount }: SidebarProps) {
@@ -81,13 +82,7 @@ export function Sidebar({ currentView, onViewChange, alertCount }: SidebarProps)
         })}
       </nav>
 
-      {/* Footer */}
-      <div className="px-3 py-4 border-t border-sidebar-border">
-        <button className="sidebar-link w-full">
-          <Settings className="w-5 h-5" />
-          <span>Ayarlar</span>
-        </button>
-      </div>
+      {/* Footer - removed, profile is now in menu */}
     </aside>
   );
 }

@@ -9,6 +9,7 @@ import { MovementPage } from '@/components/movements/MovementPage';
 import { LocationView } from '@/components/locations/LocationView';
 import { AlertList } from '@/components/alerts/AlertList';
 import { UserManagement } from '@/components/users/UserManagement';
+import { ProfileSettings } from '@/components/profile/ProfileSettings';
 import { Product, ViewMode } from '@/types/stock';
 import { useProducts } from '@/hooks/useProducts';
 import { useMovements } from '@/hooks/useMovements';
@@ -130,6 +131,7 @@ const Index = () => {
     locations: 'Konum Yönetimi',
     alerts: 'Stok Uyarıları',
     users: 'Kullanıcı Yönetimi',
+    profile: 'Profil Ayarları',
   };
 
   const isLoading = productsLoading || movementsLoading;
@@ -261,6 +263,10 @@ const Index = () => {
 
           {currentView === 'users' && (
             <UserManagement />
+          )}
+
+          {currentView === 'profile' && (
+            <ProfileSettings />
           )}
         </main>
       </div>
