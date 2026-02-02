@@ -8,6 +8,7 @@ import { StockActionModal } from '@/components/products/StockActionModal';
 import { MovementPage } from '@/components/movements/MovementPage';
 import { LocationView } from '@/components/locations/LocationView';
 import { AlertList } from '@/components/alerts/AlertList';
+import { UserManagement } from '@/components/users/UserManagement';
 import { Product, ViewMode } from '@/types/stock';
 import { useProducts } from '@/hooks/useProducts';
 import { useMovements } from '@/hooks/useMovements';
@@ -127,6 +128,7 @@ const Index = () => {
     movements: 'Stok Hareketleri',
     locations: 'Konum Yönetimi',
     alerts: 'Stok Uyarıları',
+    users: 'Kullanıcı Yönetimi',
   };
 
   const isLoading = productsLoading || movementsLoading;
@@ -254,6 +256,10 @@ const Index = () => {
               onStockAction={handleStockAction}
               onViewProduct={handleViewProduct}
             />
+          )}
+
+          {currentView === 'users' && (
+            <UserManagement />
           )}
         </main>
       </div>

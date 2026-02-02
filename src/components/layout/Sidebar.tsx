@@ -4,10 +4,12 @@ import {
   ArrowLeftRight, 
   MapPin, 
   AlertTriangle,
-  Settings
+  Settings,
+  Users
 } from 'lucide-react';
 import { ViewMode } from '@/types/stock';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/hooks/useAuth';
 
 interface SidebarProps {
   currentView: ViewMode;
@@ -16,14 +18,19 @@ interface SidebarProps {
 }
 
 const menuItems = [
-  { id: 'dashboard' as ViewMode, icon: LayoutDashboard, label: 'Kontrol Paneli' },
-  { id: 'products' as ViewMode, icon: Package, label: 'Ürünler' },
-  { id: 'movements' as ViewMode, icon: ArrowLeftRight, label: 'Stok Hareketleri' },
-  { id: 'locations' as ViewMode, icon: MapPin, label: 'Konumlar' },
-  { id: 'alerts' as ViewMode, icon: AlertTriangle, label: 'Uyarılar' },
+  { id: 'dashboard' as ViewMode, icon: LayoutDashboard, label: 'Kontrol Paneli', adminOnly: false },
+  { id: 'products' as ViewMode, icon: Package, label: 'Ürünler', adminOnly: false },
+  { id: 'movements' as ViewMode, icon: ArrowLeftRight, label: 'Stok Hareketleri', adminOnly: false },
+  { id: 'locations' as ViewMode, icon: MapPin, label: 'Konumlar', adminOnly: false },
+  { id: 'alerts' as ViewMode, icon: AlertTriangle, label: 'Uyarılar', adminOnly: false },
+  { id: 'users' as ViewMode, icon: Users, label: 'Kullanıcılar', adminOnly: true },
 ];
 
 export function Sidebar({ currentView, onViewChange, alertCount }: SidebarProps) {
+  const { isAdmin } = useAuth();
+  
+  const visibleMenuItems = menuItems.filter(item => !item.adminOnly || isAdmin);
+
   return (
     <aside className="fixed left-0 top-0 z-40 h-screen w-64 bg-sidebar border-r border-sidebar-border flex flex-col">
       {/* Logo */}
@@ -37,7 +44,7 @@ export function Sidebar({ currentView, onViewChange, alertCount }: SidebarProps)
 
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        {menuItems.map((item) => {
+        {visibleMenuItems.map((item) => {
           const Icon = item.icon;
           const isActive = currentView === item.id;
           const showBadge = item.id === 'alerts' && alertCount > 0;

@@ -35,4 +35,4 @@ export interface DashboardStats {
   totalOut: number;
 }
 
-export type ViewMode = 'dashboard' | 'products' | 'movements' | 'locations' | 'alerts';
+export type ViewMode = 'dashboard' | 'products' | 'movements' | 'locations' | 'alerts' | 'users';
