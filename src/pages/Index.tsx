@@ -71,7 +71,6 @@ const Index = () => {
       quantity,
       date: new Date().toISOString().split('T')[0],
       time: new Date().toTimeString().slice(0, 5),
-      handledBy: user?.email || 'Kullanıcı',
       note: note || undefined,
     });
 
@@ -85,7 +84,6 @@ const Index = () => {
     quantity: number;
     date: string;
     time: string;
-    handledBy: string;
     note?: string;
   }) => {
     await addMovement(data);
