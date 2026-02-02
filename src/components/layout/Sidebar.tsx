@@ -50,9 +50,13 @@ export function Sidebar({ currentView, onViewChange, alertCount }: SidebarProps)
           const showBadge = item.id === 'alerts' && alertCount > 0;
 
           return (
-            <button
+            <a
               key={item.id}
-              onClick={() => onViewChange(item.id)}
+              href={item.id === 'dashboard' ? '/' : `/${item.id}`}
+              onClick={(e) => {
+                e.preventDefault();
+                onViewChange(item.id);
+              }}
               className={cn(
                 'sidebar-link w-full relative',
                 isActive && 'sidebar-link-active'
@@ -65,7 +69,7 @@ export function Sidebar({ currentView, onViewChange, alertCount }: SidebarProps)
                   {alertCount}
                 </span>
               )}
-            </button>
+            </a>
           );
         })}
       </nav>

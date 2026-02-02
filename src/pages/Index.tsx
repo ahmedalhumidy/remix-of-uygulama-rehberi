@@ -13,6 +13,7 @@ import { Product, ViewMode } from '@/types/stock';
 import { useProducts } from '@/hooks/useProducts';
 import { useMovements } from '@/hooks/useMovements';
 import { useAuth } from '@/hooks/useAuth';
+import { useCurrentView } from '@/hooks/useCurrentView';
 import { cn } from '@/lib/utils';
 import { X, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -23,7 +24,7 @@ const Index = () => {
   const { products, loading: productsLoading, addProduct, updateProduct, deleteProduct, refreshProducts } = useProducts();
   const { movements, loading: movementsLoading, addMovement, refreshMovements } = useMovements(products);
   
-  const [currentView, setCurrentView] = useState<ViewMode>('dashboard');
+  const { currentView, setCurrentView } = useCurrentView();
   const [searchQuery, setSearchQuery] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
