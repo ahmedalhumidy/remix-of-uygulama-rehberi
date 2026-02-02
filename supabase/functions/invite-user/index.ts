@@ -81,6 +81,21 @@ serve(async (req) => {
       );
     }
 
+    // Validate password strength server-side
+    const passwordErrors: string[] = [];
+    if (password.length < 8) passwordErrors.push('Password must be at least 8 characters');
+    if (!/[a-z]/.test(password)) passwordErrors.push('Password must contain a lowercase letter');
+    if (!/[A-Z]/.test(password)) passwordErrors.push('Password must contain an uppercase letter');
+    if (!/[0-9]/.test(password)) passwordErrors.push('Password must contain a number');
+    if (!/[^a-zA-Z0-9]/.test(password)) passwordErrors.push('Password must contain a special character');
+    
+    if (passwordErrors.length > 0) {
+      return new Response(
+        JSON.stringify({ error: "Password does not meet requirements", details: passwordErrors }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Create user with admin API (auto-confirms email)
     const { data: userData, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email,

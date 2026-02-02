@@ -10,7 +10,22 @@ import { Package, LogIn, UserPlus, Loader2 } from 'lucide-react';
 import { z } from 'zod';
 
 const emailSchema = z.string().email('Geçerli bir e-posta adresi girin');
-const passwordSchema = z.string().min(6, 'Şifre en az 6 karakter olmalı');
+const passwordSchema = z.string()
+  .min(8, 'Şifre en az 8 karakter olmalı')
+  .regex(/[a-z]/, 'En az bir küçük harf içermelidir')
+  .regex(/[A-Z]/, 'En az bir büyük harf içermelidir')
+  .regex(/[0-9]/, 'En az bir rakam içermelidir')
+  .regex(/[^a-zA-Z0-9]/, 'En az bir özel karakter içermelidir');
+
+const getPasswordErrors = (password: string): string[] => {
+  const errors: string[] = [];
+  if (password.length < 8) errors.push('En az 8 karakter');
+  if (!/[a-z]/.test(password)) errors.push('Küçük harf');
+  if (!/[A-Z]/.test(password)) errors.push('Büyük harf');
+  if (!/[0-9]/.test(password)) errors.push('Rakam');
+  if (!/[^a-zA-Z0-9]/.test(password)) errors.push('Özel karakter');
+  return errors;
+};
 
 export default function Auth() {
   const navigate = useNavigate();
@@ -165,6 +180,24 @@ export default function Auth() {
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={loading}
               />
+              {!isLogin && password && (
+                <div className="text-xs space-y-1">
+                  <p className="text-muted-foreground">Şifre gereksinimleri:</p>
+                  <ul className="grid grid-cols-2 gap-1">
+                    {[
+                      { check: password.length >= 8, label: '8+ karakter' },
+                      { check: /[a-z]/.test(password), label: 'Küçük harf' },
+                      { check: /[A-Z]/.test(password), label: 'Büyük harf' },
+                      { check: /[0-9]/.test(password), label: 'Rakam' },
+                      { check: /[^a-zA-Z0-9]/.test(password), label: 'Özel karakter' },
+                    ].map((req) => (
+                      <li key={req.label} className={req.check ? 'text-green-600' : 'text-muted-foreground'}>
+                        {req.check ? '✓' : '○'} {req.label}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
             
             <Button type="submit" className="w-full" disabled={loading}>
