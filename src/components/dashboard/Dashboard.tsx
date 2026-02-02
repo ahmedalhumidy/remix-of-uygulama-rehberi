@@ -1,12 +1,14 @@
-import { useMemo } from 'react';
-import { Package, TrendingUp, AlertTriangle, ArrowUpRight, ArrowDownRight, Users, Activity } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Package, TrendingUp, AlertTriangle, ArrowUpRight, ArrowDownRight, Users, Activity, Plus, ArrowLeftRight } from 'lucide-react';
 import { StatCard } from './StatCard';
 import { RecentMovements } from './RecentMovements';
 import { LowStockList } from './LowStockList';
 import { Product, StockMovement } from '@/types/stock';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { cn } from '@/lib/utils';
 
 interface DashboardProps {
   products: Product[];
@@ -14,7 +16,11 @@ interface DashboardProps {
   onViewProduct: (id: string) => void;
 }
 
+type ChartPeriod = 'today' | 'week' | 'month';
+
 export function Dashboard({ products, movements, onViewProduct }: DashboardProps) {
+  const [chartPeriod, setChartPeriod] = useState<ChartPeriod>('week');
+  
   const totalProducts = products.length;
   const totalStock = products.reduce((sum, p) => sum + p.mevcutStok, 0);
   const lowStockProducts = products.filter(p => p.mevcutStok < p.minStok);
@@ -25,16 +31,26 @@ export function Dashboard({ products, movements, onViewProduct }: DashboardProps
 
   // Today's movements
   const today = new Date().toISOString().split('T')[0];
+  const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+  
   const todayMovements = movements.filter(m => m.date === today);
+  const yesterdayMovements = movements.filter(m => m.date === yesterday);
+  
   const todayIn = todayMovements.filter(m => m.type === 'giris').reduce((sum, m) => sum + m.quantity, 0);
   const todayOut = todayMovements.filter(m => m.type === 'cikis').reduce((sum, m) => sum + m.quantity, 0);
+  const yesterdayIn = yesterdayMovements.filter(m => m.type === 'giris').reduce((sum, m) => sum + m.quantity, 0);
+  const yesterdayOut = yesterdayMovements.filter(m => m.type === 'cikis').reduce((sum, m) => sum + m.quantity, 0);
 
-  // Weekly data for chart
-  const weeklyData = useMemo(() => {
-    const days: Record<string, { date: string; giris: number; cikis: number }> = {};
+  // Chart data based on period
+  const chartData = useMemo(() => {
     const now = new Date();
+    const days: Record<string, { date: string; giris: number; cikis: number }> = {};
     
-    for (let i = 6; i >= 0; i--) {
+    let daysCount = 7;
+    if (chartPeriod === 'today') daysCount = 1;
+    if (chartPeriod === 'month') daysCount = 30;
+    
+    for (let i = daysCount - 1; i >= 0; i--) {
       const d = new Date(now);
       d.setDate(d.getDate() - i);
       const dateStr = d.toISOString().split('T')[0];
@@ -52,7 +68,7 @@ export function Dashboard({ products, movements, onViewProduct }: DashboardProps
     });
     
     return Object.values(days);
-  }, [movements]);
+  }, [movements, chartPeriod]);
 
   // Most active products
   const mostActiveProducts = useMemo(() => {
@@ -83,118 +99,189 @@ export function Dashboard({ products, movements, onViewProduct }: DashboardProps
     return Object.values(activity).sort((a, b) => b.count - a.count).slice(0, 5);
   }, [movements]);
 
+  const periodLabels: Record<ChartPeriod, string> = {
+    today: 'Bugün',
+    week: 'Bu Hafta',
+    month: 'Bu Ay'
+  };
+
   return (
-    <div className="space-y-6 animate-slide-up">
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+    <div className="space-y-5 animate-fade-in">
+      {/* Primary Actions */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-foreground">Kontrol Paneli</h1>
+          <p className="text-sm text-muted-foreground">Stok durumunuza genel bakış</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button size="lg" className="shadow-md hover:shadow-lg transition-shadow h-11 px-5">
+            <Plus className="w-4 h-4 mr-2" />
+            Yeni Ürün
+          </Button>
+          <Button size="lg" variant="outline" className="h-11 px-5 border-primary/20 hover:border-primary/40">
+            <ArrowLeftRight className="w-4 h-4 mr-2" />
+            Stok Hareketi
+          </Button>
+        </div>
+      </div>
+
+      {/* Stats Grid - More Compact */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         <StatCard
           title="Toplam Ürün"
           value={totalProducts}
           icon={Package}
           variant="primary"
+          compact
         />
         <StatCard
           title="Toplam Stok"
           value={totalStock.toLocaleString('tr-TR')}
           icon={TrendingUp}
           variant="accent"
+          compact
         />
         <StatCard
           title="Toplam Giriş"
           value={totalIn.toLocaleString('tr-TR')}
           icon={ArrowUpRight}
           variant="success"
+          comparison={{ current: todayIn, previous: yesterdayIn }}
+          compact
         />
         <StatCard
           title="Toplam Çıkış"
           value={totalOut.toLocaleString('tr-TR')}
           icon={ArrowDownRight}
           variant="warning"
+          comparison={{ current: todayOut, previous: yesterdayOut }}
+          compact
         />
         <StatCard
           title="Bugün Hareket"
           value={todayMovements.length}
           icon={Activity}
-          variant="accent"
+          comparison={{ current: todayMovements.length, previous: yesterdayMovements.length }}
+          compact
         />
         <StatCard
           title="Düşük Stok"
           value={lowStockCount}
           icon={AlertTriangle}
-          variant="destructive"
+          variant={lowStockCount > 0 ? 'destructive' : 'default'}
+          compact
         />
       </div>
 
-      {/* Today's Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
+      {/* Today's Quick Stats - More Compact */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <Card className="border-border/60 shadow-sm">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Bugünkü Giriş</p>
-                <p className="text-2xl font-bold text-success">+{todayIn}</p>
+              <div className="space-y-0.5">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Bugünkü Giriş</p>
+                <p className="text-2xl font-bold text-success tabular-nums">+{todayIn}</p>
               </div>
-              <div className="p-3 rounded-full bg-success/10">
-                <ArrowUpRight className="w-6 h-6 text-success" />
+              <div className="p-2.5 rounded-xl bg-success/8">
+                <ArrowUpRight className="w-5 h-5 text-success" />
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-border/60 shadow-sm">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Bugünkü Çıkış</p>
-                <p className="text-2xl font-bold text-destructive">-{todayOut}</p>
+              <div className="space-y-0.5">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Bugünkü Çıkış</p>
+                <p className="text-2xl font-bold text-destructive tabular-nums">-{todayOut}</p>
               </div>
-              <div className="p-3 rounded-full bg-destructive/10">
-                <ArrowDownRight className="w-6 h-6 text-destructive" />
+              <div className="p-2.5 rounded-xl bg-destructive/8">
+                <ArrowDownRight className="w-5 h-5 text-destructive" />
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-border/60 shadow-sm">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Bugünkü Net</p>
-                <p className={`text-2xl font-bold ${todayIn - todayOut >= 0 ? 'text-success' : 'text-destructive'}`}>
+              <div className="space-y-0.5">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Bugünkü Net</p>
+                <p className={cn(
+                  'text-2xl font-bold tabular-nums',
+                  todayIn - todayOut >= 0 ? 'text-success' : 'text-destructive'
+                )}>
                   {todayIn - todayOut >= 0 ? '+' : ''}{todayIn - todayOut}
                 </p>
               </div>
-              <div className={`p-3 rounded-full ${todayIn - todayOut >= 0 ? 'bg-success/10' : 'bg-destructive/10'}`}>
-                <TrendingUp className={`w-6 h-6 ${todayIn - todayOut >= 0 ? 'text-success' : 'text-destructive'}`} />
+              <div className={cn(
+                'p-2.5 rounded-xl',
+                todayIn - todayOut >= 0 ? 'bg-success/8' : 'bg-destructive/8'
+              )}>
+                <TrendingUp className={cn(
+                  'w-5 h-5',
+                  todayIn - todayOut >= 0 ? 'text-success' : 'text-destructive'
+                )} />
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Weekly Chart */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Haftalık Stok Hareketleri</CardTitle>
+      {/* Chart Section */}
+      <Card className="border-border/60 shadow-sm">
+        <CardHeader className="pb-2 flex-row items-center justify-between space-y-0">
+          <CardTitle className="text-base font-semibold">Stok Hareketleri</CardTitle>
+          <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-1">
+            {(['today', 'week', 'month'] as ChartPeriod[]).map((period) => (
+              <button
+                key={period}
+                onClick={() => setChartPeriod(period)}
+                className={cn(
+                  'px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-200',
+                  chartPeriod === period 
+                    ? 'bg-background text-foreground shadow-sm' 
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                {periodLabels[period]}
+              </button>
+            ))}
+          </div>
         </CardHeader>
-        <CardContent>
-          <div className="h-[280px]">
+        <CardContent className="pt-2">
+          <div className="h-[260px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={weeklyData}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+              <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border/40" vertical={false} />
                 <XAxis 
                   dataKey="date" 
-                  tick={{ fontSize: 12 }}
-                  tickFormatter={(v) => new Date(v).toLocaleDateString('tr-TR', { weekday: 'short', day: 'numeric' })}
+                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                  tickFormatter={(v) => {
+                    if (chartPeriod === 'today') return 'Bugün';
+                    return new Date(v).toLocaleDateString('tr-TR', { 
+                      weekday: chartPeriod === 'week' ? 'short' : undefined, 
+                      day: 'numeric',
+                      month: chartPeriod === 'month' ? 'short' : undefined
+                    });
+                  }}
+                  axisLine={false}
+                  tickLine={false}
                 />
-                <YAxis tick={{ fontSize: 12 }} />
+                <YAxis 
+                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} 
+                  axisLine={false}
+                  tickLine={false}
+                />
                 <Tooltip 
                   labelFormatter={(v) => new Date(v).toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long' })}
                   contentStyle={{ 
                     backgroundColor: 'hsl(var(--card))', 
                     border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px'
+                    borderRadius: '10px',
+                    boxShadow: '0 4px 12px -2px rgb(0 0 0 / 0.1)'
                   }}
                 />
-                <Legend />
+                <Legend wrapperStyle={{ paddingTop: '8px' }} />
                 <Bar dataKey="giris" name="Giriş" fill="hsl(var(--success))" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="cikis" name="Çıkış" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
               </BarChart>
@@ -203,70 +290,75 @@ export function Dashboard({ products, movements, onViewProduct }: DashboardProps
         </CardContent>
       </Card>
 
-      {/* Three Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Three Column Layout - Reduced gap */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Most Active Products */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Activity className="w-4 h-4" />
+        <Card className="border-border/60 shadow-sm">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <div className="p-1.5 rounded-lg bg-primary/8">
+                <Activity className="w-3.5 h-3.5 text-primary" />
+              </div>
               En Aktif Ürünler
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
+          <CardContent className="pt-0">
+            <div className="space-y-2">
               {mostActiveProducts.map((p, i) => (
                 <div 
                   key={p.id} 
-                  className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                  className="flex items-center justify-between p-2.5 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors group"
                   onClick={() => onViewProduct(p.id)}
                 >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
+                  <div className="flex items-center gap-2.5">
+                    <div className={cn(
+                      'w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold transition-transform group-hover:scale-105',
                       i === 0 ? 'bg-primary text-primary-foreground' : 
                       i === 1 ? 'bg-secondary text-secondary-foreground' : 
                       'bg-muted text-muted-foreground'
-                    }`}>
+                    )}>
                       {i + 1}
                     </div>
-                    <div>
-                      <p className="text-sm font-medium truncate max-w-[120px]">{p.name}</p>
-                      <p className="text-xs text-muted-foreground">{p.totalQty} adet</p>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate max-w-[100px]">{p.name}</p>
+                      <p className="text-[10px] text-muted-foreground">{p.totalQty} adet</p>
                     </div>
                   </div>
-                  <Badge variant="outline">{p.count} hareket</Badge>
+                  <Badge variant="outline" className="text-[10px] h-5">{p.count}</Badge>
                 </div>
               ))}
               {mostActiveProducts.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-4">Henüz hareket yok</p>
+                <p className="text-sm text-muted-foreground text-center py-6">Henüz hareket yok</p>
               )}
             </div>
           </CardContent>
         </Card>
 
         {/* User Activity Summary */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Users className="w-4 h-4" />
+        <Card className="border-border/60 shadow-sm">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <div className="p-1.5 rounded-lg bg-accent/10">
+                <Users className="w-3.5 h-3.5 text-accent" />
+              </div>
               Kullanıcı Aktivitesi
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {userActivity.map((u, i) => (
-                <div key={u.name} className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                      <span className="text-xs font-medium text-primary">{u.name.charAt(0).toUpperCase()}</span>
+          <CardContent className="pt-0">
+            <div className="space-y-2">
+              {userActivity.map((u) => (
+                <div key={u.name} className="flex items-center justify-between p-2.5 rounded-lg bg-muted/30">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <span className="text-xs font-semibold text-primary">{u.name.charAt(0).toUpperCase()}</span>
                     </div>
-                    <p className="text-sm font-medium truncate max-w-[120px]">{u.name}</p>
+                    <p className="text-sm font-medium truncate max-w-[100px]">{u.name}</p>
                   </div>
-                  <Badge variant="secondary">{u.count}</Badge>
+                  <Badge variant="secondary" className="text-[10px] h-5">{u.count}</Badge>
                 </div>
               ))}
               {userActivity.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-4">Henüz aktivite yok</p>
+                <p className="text-sm text-muted-foreground text-center py-6">Henüz aktivite yok</p>
               )}
             </div>
           </CardContent>
