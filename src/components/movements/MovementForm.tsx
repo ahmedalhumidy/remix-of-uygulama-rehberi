@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowUpRight, ArrowDownRight, User, Calendar, Clock, Package, FileText, Scan, Search } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, User, Calendar, Clock, Package, FileText, Scan, Search, Plus } from 'lucide-react';
 import { Product } from '@/types/stock';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,6 +27,7 @@ interface MovementFormProps {
     handledBy: string;
     note?: string;
   }) => void;
+  onAddNewProduct?: (barcode: string) => void;
 }
 
 const staffMembers = [
@@ -37,7 +38,7 @@ const staffMembers = [
   'Ayşe Çelik',
 ];
 
-export function MovementForm({ products, onSubmit }: MovementFormProps) {
+export function MovementForm({ products, onSubmit, onAddNewProduct }: MovementFormProps) {
   const [type, setType] = useState<'giris' | 'cikis'>('giris');
   const [productId, setProductId] = useState('');
   const [quantity, setQuantity] = useState(1);
@@ -47,6 +48,8 @@ export function MovementForm({ products, onSubmit }: MovementFormProps) {
   const [note, setNote] = useState('');
   const [showScanner, setShowScanner] = useState(false);
   const [productSearch, setProductSearch] = useState('');
+  const [notFoundBarcode, setNotFoundBarcode] = useState<string | null>(null);
+  const [autoSubmitReady, setAutoSubmitReady] = useState(false);
 
   const selectedProduct = products.find(p => p.id === productId);
 
@@ -65,13 +68,24 @@ export function MovementForm({ products, onSubmit }: MovementFormProps) {
     if (product) {
       setProductId(product.id);
       setShowScanner(false);
+      setNotFoundBarcode(null);
+      setAutoSubmitReady(true);
       toast.success(`Ürün bulundu: ${product.urunAdi}`, {
-        description: `Kod: ${product.urunKodu}`,
+        description: `Kod: ${product.urunKodu} - Miktar ekleyip kaydedin`,
       });
     } else {
-      toast.error('Ürün bulunamadı', {
-        description: `Barkod: ${code}`,
+      setNotFoundBarcode(code);
+      setShowScanner(false);
+      toast.warning('Ürün bulunamadı', {
+        description: `Barkod: ${code} - Yeni ürün ekleyebilirsiniz`,
       });
+    }
+  };
+
+  const handleAddNewProductClick = () => {
+    if (notFoundBarcode && onAddNewProduct) {
+      onAddNewProduct(notFoundBarcode);
+      setNotFoundBarcode(null);
     }
   };
 
@@ -156,6 +170,42 @@ export function MovementForm({ products, onSubmit }: MovementFormProps) {
         onClose={() => setShowScanner(false)}
       />
 
+      {/* Not Found Barcode - Add New Product Option */}
+      {notFoundBarcode && (
+        <div className="p-4 rounded-xl bg-warning/10 border border-warning/30 space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-warning/20">
+              <Scan className="w-5 h-5 text-warning" />
+            </div>
+            <div className="flex-1">
+              <p className="font-semibold text-foreground">Ürün Bulunamadı</p>
+              <p className="text-sm text-muted-foreground">
+                Barkod: <span className="font-mono font-bold">{notFoundBarcode}</span>
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              onClick={handleAddNewProductClick}
+              className="flex-1 bg-primary hover:bg-primary/90"
+              disabled={!onAddNewProduct}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Yeni Ürün Ekle
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setNotFoundBarcode(null)}
+              className="flex-1"
+            >
+              İptal
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Product Selection with Search and Barcode */}
       <div className="space-y-3">
         <Label className="flex items-center gap-2">
@@ -167,7 +217,10 @@ export function MovementForm({ products, onSubmit }: MovementFormProps) {
         <Button
           type="button"
           variant="outline"
-          onClick={() => setShowScanner(!showScanner)}
+          onClick={() => {
+            setShowScanner(!showScanner);
+            setNotFoundBarcode(null);
+          }}
           className={cn(
             'w-full flex items-center justify-center gap-2 border-2 border-dashed',
             showScanner ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
@@ -228,16 +281,32 @@ export function MovementForm({ products, onSubmit }: MovementFormProps) {
 
         {/* Selected Product Info */}
         {selectedProduct && (
-          <div className="p-3 rounded-xl bg-primary/5 border border-primary/20">
+          <div className={cn(
+            "p-3 rounded-xl border",
+            autoSubmitReady 
+              ? "bg-success/10 border-success/30 animate-pulse" 
+              : "bg-primary/5 border-primary/20"
+          )}>
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <Package className="w-5 h-5 text-primary" />
+              <div className={cn(
+                "p-2 rounded-lg",
+                autoSubmitReady ? "bg-success/20" : "bg-primary/10"
+              )}>
+                <Package className={cn(
+                  "w-5 h-5",
+                  autoSubmitReady ? "text-success" : "text-primary"
+                )} />
               </div>
               <div className="flex-1">
                 <p className="font-semibold text-foreground">{selectedProduct.urunAdi}</p>
                 <p className="text-xs text-muted-foreground">
                   Kod: {selectedProduct.urunKodu} | Konum: {selectedProduct.rafKonum}
                 </p>
+                {autoSubmitReady && (
+                  <p className="text-xs text-success font-medium mt-1">
+                    ✓ Barkod ile seçildi - Miktar girin ve kaydedin
+                  </p>
+                )}
               </div>
               <div className="text-right">
                 <p className={cn(
