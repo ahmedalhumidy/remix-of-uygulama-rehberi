@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Package, MapPin, AlertTriangle, MoreHorizontal, Edit2, Trash2, ArrowUpDown, Eye } from 'lucide-react';
 import { Product } from '@/types/stock';
 import { Button } from '@/components/ui/button';
@@ -35,24 +35,41 @@ export function ProductList({
   const [sortField, setSortField] = useState<SortField>('urunAdi');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
 
-  const filteredProducts = products.filter(product => {
+  // Safari'de çok büyük listeler sayfayı çökertmesin diye (özellikle mobilde)
+  // ürünleri parça parça render ediyoruz.
+  const PAGE_SIZE = 50;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+
+  const filteredProducts = useMemo(() => {
     const query = searchQuery.toLowerCase();
-    return (
+    return products.filter((product) => (
       product.urunAdi.toLowerCase().includes(query) ||
       product.urunKodu.toLowerCase().includes(query) ||
       product.rafKonum.toLowerCase().includes(query)
-    );
-  });
+    ));
+  }, [products, searchQuery]);
 
-  const sortedProducts = [...filteredProducts].sort((a, b) => {
-    let comparison = 0;
-    if (sortField === 'mevcutStok') {
-      comparison = a.mevcutStok - b.mevcutStok;
-    } else {
-      comparison = a[sortField].localeCompare(b[sortField], 'tr');
-    }
-    return sortOrder === 'asc' ? comparison : -comparison;
-  });
+  const sortedProducts = useMemo(() => {
+    return [...filteredProducts].sort((a, b) => {
+      let comparison = 0;
+      if (sortField === 'mevcutStok') {
+        comparison = a.mevcutStok - b.mevcutStok;
+      } else {
+        comparison = a[sortField].localeCompare(b[sortField], 'tr');
+      }
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
+  }, [filteredProducts, sortField, sortOrder]);
+
+  const visibleProducts = useMemo(
+    () => sortedProducts.slice(0, visibleCount),
+    [sortedProducts, visibleCount]
+  );
+
+  // Filtre/sıralama değişince sayfalamayı başa al
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [searchQuery, sortField, sortOrder, PAGE_SIZE]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -105,13 +122,14 @@ export function ProductList({
               </tr>
             </thead>
             <tbody>
-              {sortedProducts.map((product, index) => {
+              {visibleProducts.map((product, index) => {
                 const isLowStock = product.mevcutStok < product.minStok;
+                 const delay = index < 20 ? index * 20 : 0;
                 return (
                   <tr 
                     key={product.id} 
                     className="table-row-hover border-b border-border last:border-0 animate-fade-in"
-                    style={{ animationDelay: `${index * 20}ms` }}
+                     style={delay ? { animationDelay: `${delay}ms` } : undefined}
                   >
                     <td className="py-4 px-4">
                       <span className="font-mono text-sm bg-muted px-2 py-1 rounded">
@@ -213,13 +231,14 @@ export function ProductList({
 
       {/* Mobile Cards */}
       <div className="md:hidden space-y-3">
-        {sortedProducts.map((product, index) => {
+        {visibleProducts.map((product, index) => {
           const isLowStock = product.mevcutStok < product.minStok;
+          const delay = index < 20 ? index * 30 : 0;
           return (
             <div 
               key={product.id} 
               className="stat-card animate-slide-up"
-              style={{ animationDelay: `${index * 30}ms` }}
+              style={delay ? { animationDelay: `${delay}ms` } : undefined}
             >
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
@@ -309,6 +328,23 @@ export function ProductList({
           <Package className="w-12 h-12 text-muted-foreground/50 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-foreground mb-2">Ürün bulunamadı</h3>
           <p className="text-muted-foreground">Arama kriterlerinize uygun ürün yok.</p>
+        </div>
+      )}
+
+      {sortedProducts.length > 0 && sortedProducts.length > visibleCount && (
+        <div className="mt-4 stat-card">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <p className="text-sm text-muted-foreground">
+              Gösterilen: <span className="font-medium text-foreground">{visibleProducts.length}</span> / {sortedProducts.length}
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setVisibleCount((c) => Math.min(c + PAGE_SIZE, sortedProducts.length))}
+            >
+              Daha fazla yükle
+            </Button>
+          </div>
         </div>
       )}
     </div>

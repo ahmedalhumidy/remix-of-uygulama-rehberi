@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, Package, MapPin, TrendingDown, ChevronRight } from 'lucide-react';
 import { Product } from '@/types/stock';
 import { Button } from '@/components/ui/button';
@@ -11,23 +12,42 @@ interface AlertListProps {
 }
 
 export function AlertList({ products, searchQuery, onStockAction, onViewProduct }: AlertListProps) {
-  const lowStockProducts = products.filter(p => p.mevcutStok < p.minStok);
-  
-  const filteredProducts = lowStockProducts.filter(product => {
+  // Safari'de (özellikle mobilde) büyük listeler beyaz ekrana/yeniden yüklemeye sebep olabiliyor.
+  // Bu yüzden uyarıları da parça parça render ediyoruz.
+  const PAGE_SIZE = 30;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+
+  const lowStockProducts = useMemo(
+    () => products.filter((p) => p.mevcutStok < p.minStok),
+    [products]
+  );
+
+  const filteredProducts = useMemo(() => {
     const query = searchQuery.toLowerCase();
-    return (
+    return lowStockProducts.filter((product) => (
       product.urunAdi.toLowerCase().includes(query) ||
       product.urunKodu.toLowerCase().includes(query) ||
       product.rafKonum.toLowerCase().includes(query)
-    );
-  });
+    ));
+  }, [lowStockProducts, searchQuery]);
 
   // Sort by urgency (how far below minimum)
-  const sortedProducts = [...filteredProducts].sort((a, b) => {
-    const aRatio = a.mevcutStok / a.minStok;
-    const bRatio = b.mevcutStok / b.minStok;
-    return aRatio - bRatio;
-  });
+  const sortedProducts = useMemo(() => {
+    return [...filteredProducts].sort((a, b) => {
+      const aRatio = a.mevcutStok / a.minStok;
+      const bRatio = b.mevcutStok / b.minStok;
+      return aRatio - bRatio;
+    });
+  }, [filteredProducts]);
+
+  const visibleProducts = useMemo(
+    () => sortedProducts.slice(0, visibleCount),
+    [sortedProducts, visibleCount]
+  );
+
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [searchQuery, PAGE_SIZE]);
 
   const getUrgencyLevel = (current: number, min: number): 'critical' | 'warning' | 'low' => {
     const ratio = current / min;
@@ -71,9 +91,10 @@ export function AlertList({ products, searchQuery, onStockAction, onViewProduct 
 
       {/* Alert List */}
       <div className="space-y-3">
-        {sortedProducts.map((product, index) => {
+        {visibleProducts.map((product, index) => {
           const urgency = getUrgencyLevel(product.mevcutStok, product.minStok);
           const shortage = product.minStok - product.mevcutStok;
+          const delay = index < 20 ? index * 30 : 0;
 
           return (
             <div 
@@ -82,7 +103,7 @@ export function AlertList({ products, searchQuery, onStockAction, onViewProduct 
                 'stat-card animate-slide-up',
                 urgencyStyles[urgency]
               )}
-              style={{ animationDelay: `${index * 30}ms` }}
+              style={delay ? { animationDelay: `${delay}ms` } : undefined}
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-start gap-3 flex-1 min-w-0">
@@ -138,6 +159,23 @@ export function AlertList({ products, searchQuery, onStockAction, onViewProduct 
           );
         })}
       </div>
+
+      {sortedProducts.length > 0 && sortedProducts.length > visibleCount && (
+        <div className="stat-card">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm text-muted-foreground">
+              Gösterilen: <span className="font-medium text-foreground">{visibleProducts.length}</span> / {sortedProducts.length}
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setVisibleCount((c) => Math.min(c + PAGE_SIZE, sortedProducts.length))}
+            >
+              Daha fazla yükle
+            </Button>
+          </div>
+        </div>
+      )}
 
       {sortedProducts.length === 0 && lowStockProducts.length === 0 && (
         <div className="stat-card text-center py-12 bg-success/5 border-success/20">
