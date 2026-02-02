@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowUpRight, ArrowDownRight, User, Calendar, Clock, Package, FileText, Scan, Search, Plus } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, User, Calendar, Clock, Package, FileText, Scan, Plus, ChevronsUpDown, Check } from 'lucide-react';
 import { Product } from '@/types/stock';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,6 +12,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
 import { cn } from '@/lib/utils';
 import { BarcodeScanner } from '@/components/scanner/BarcodeScanner';
 import { toast } from 'sonner';
@@ -47,21 +56,11 @@ export function MovementForm({ products, onSubmit, onAddNewProduct }: MovementFo
   const [handledBy, setHandledBy] = useState('');
   const [note, setNote] = useState('');
   const [showScanner, setShowScanner] = useState(false);
-  const [productSearch, setProductSearch] = useState('');
   const [notFoundBarcode, setNotFoundBarcode] = useState<string | null>(null);
   const [autoSubmitReady, setAutoSubmitReady] = useState(false);
+  const [openProductCombobox, setOpenProductCombobox] = useState(false);
 
   const selectedProduct = products.find(p => p.id === productId);
-
-  // Filter products based on search
-  const filteredProducts = products.filter(p => {
-    const query = productSearch.toLowerCase();
-    return (
-      p.urunAdi.toLowerCase().includes(query) ||
-      p.urunKodu.toLowerCase().includes(query) ||
-      p.barkod?.toLowerCase().includes(query)
-    );
-  });
 
   const handleBarcodeScan = (code: string) => {
     const product = products.find(p => p.barkod === code || p.urunKodu === code);
@@ -107,7 +106,6 @@ export function MovementForm({ products, onSubmit, onAddNewProduct }: MovementFo
     setProductId('');
     setQuantity(1);
     setNote('');
-    setProductSearch('');
   };
 
   return (
@@ -230,54 +228,82 @@ export function MovementForm({ products, onSubmit, onAddNewProduct }: MovementFo
           {showScanner ? 'Tarayıcıyı Kapat' : 'Barkod ile Tara'}
         </Button>
 
-        {/* Search Box */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            type="text"
-            placeholder="Ürün adı veya kodu ile ara..."
-            value={productSearch}
-            onChange={(e) => setProductSearch(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-
-        {/* Product Dropdown */}
-        <Select value={productId} onValueChange={(value) => {
-          setProductId(value);
-          setProductSearch('');
-        }}>
-          <SelectTrigger>
-            <SelectValue placeholder="Ürün seçin..." />
-          </SelectTrigger>
-          <SelectContent className="max-h-60">
-            {filteredProducts.map(product => (
-              <SelectItem key={product.id} value={product.id}>
-                <div className="flex items-center gap-3 w-full">
-                  <div className="flex-1">
-                    <div className="font-medium">{product.urunAdi}</div>
+        {/* Product Combobox with integrated search */}
+        <Popover open={openProductCombobox} onOpenChange={setOpenProductCombobox}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              role="combobox"
+              aria-expanded={openProductCombobox}
+              className="w-full justify-between h-auto min-h-10 py-2"
+            >
+              {selectedProduct ? (
+                <div className="flex items-center gap-3 w-full text-left">
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium truncate">{selectedProduct.urunAdi}</div>
                     <div className="text-xs text-muted-foreground">
-                      Kod: {product.urunKodu} {product.barkod && `| Barkod: ${product.barkod}`}
+                      Kod: {selectedProduct.urunKodu}
                     </div>
                   </div>
                   <span className={cn(
-                    'text-xs font-semibold px-2 py-0.5 rounded',
-                    product.mevcutStok <= product.minStok 
+                    'text-xs font-semibold px-2 py-0.5 rounded shrink-0',
+                    selectedProduct.mevcutStok <= selectedProduct.minStok 
                       ? 'bg-destructive/10 text-destructive' 
                       : 'bg-success/10 text-success'
                   )}>
-                    {product.mevcutStok}
+                    {selectedProduct.mevcutStok}
                   </span>
                 </div>
-              </SelectItem>
-            ))}
-            {filteredProducts.length === 0 && (
-              <div className="py-4 text-center text-sm text-muted-foreground">
-                Ürün bulunamadı
-              </div>
-            )}
-          </SelectContent>
-        </Select>
+              ) : (
+                <span className="text-muted-foreground">Ürün seçin...</span>
+              )}
+              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+            <Command>
+              <CommandInput placeholder="Ürün adı veya kodu ara..." />
+              <CommandList>
+                <CommandEmpty>Ürün bulunamadı</CommandEmpty>
+                <CommandGroup>
+                  {products.map((product) => (
+                    <CommandItem
+                      key={product.id}
+                      value={`${product.urunAdi} ${product.urunKodu} ${product.barkod || ''}`}
+                      onSelect={() => {
+                        setProductId(product.id);
+                        setOpenProductCombobox(false);
+                      }}
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4 shrink-0",
+                          productId === product.id ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                      <div className="flex items-center gap-3 w-full">
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium truncate">{product.urunAdi}</div>
+                          <div className="text-xs text-muted-foreground">
+                            Kod: {product.urunKodu} {product.barkod && `| Barkod: ${product.barkod}`}
+                          </div>
+                        </div>
+                        <span className={cn(
+                          'text-xs font-semibold px-2 py-0.5 rounded shrink-0',
+                          product.mevcutStok <= product.minStok 
+                            ? 'bg-destructive/10 text-destructive' 
+                            : 'bg-success/10 text-success'
+                        )}>
+                          {product.mevcutStok}
+                        </span>
+                      </div>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
 
         {/* Selected Product Info */}
         {selectedProduct && (
