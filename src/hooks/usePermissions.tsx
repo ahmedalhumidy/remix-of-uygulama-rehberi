@@ -13,7 +13,8 @@ export type PermissionType =
   | 'stock_movements.create'
   | 'users.view'
   | 'users.manage'
-  | 'logs.view';
+  | 'logs.view'
+  | 'reports.view';
 
 interface RolePermissions {
   role: AppRole;
@@ -58,6 +59,7 @@ const permissionLabels: Record<PermissionType, string> = {
   'users.view': 'Kullanıcıları görüntüle',
   'users.manage': 'Kullanıcıları yönet',
   'logs.view': 'Denetim günlüklerini görüntüle',
+  'reports.view': 'Raporları görüntüle',
 };
 
 const allRoles: AppRole[] = ['admin', 'manager', 'staff', 'viewer'];

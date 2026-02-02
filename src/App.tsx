@@ -89,6 +89,11 @@ const AppRoutes = () => (
         <Index />
       </ProtectedRoute>
     } />
+    <Route path="/reports" element={
+      <ProtectedRoute>
+        <Index />
+      </ProtectedRoute>
+    } />
     <Route path="/profile" element={
       <ProtectedRoute>
         <Index />
