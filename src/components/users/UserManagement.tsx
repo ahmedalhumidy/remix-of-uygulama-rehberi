@@ -119,21 +119,13 @@ export function UserManagement() {
     setDeleting(userToDelete.user_id);
 
     try {
-      // Delete user role first
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .delete()
-        .eq('user_id', userToDelete.user_id);
+      // Call edge function to delete user completely (including from auth.users)
+      const { data, error } = await supabase.functions.invoke('delete-user', {
+        body: { userId: userToDelete.user_id }
+      });
 
-      if (roleError) throw roleError;
-
-      // Delete profile
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('user_id', userToDelete.user_id);
-
-      if (profileError) throw profileError;
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
       setUsers(prev => prev.filter(u => u.user_id !== userToDelete.user_id));
       toast.success('Kullanıcı başarıyla silindi');
