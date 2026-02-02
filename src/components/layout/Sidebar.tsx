@@ -5,7 +5,8 @@ import {
   MapPin, 
   AlertTriangle,
   UserCog,
-  Users
+  Users,
+  ScrollText
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { ViewMode } from '@/types/stock';
@@ -25,6 +26,7 @@ const menuItems = [
   { id: 'locations' as ViewMode, path: '/locations', icon: MapPin, label: 'Konumlar', adminOnly: false },
   { id: 'alerts' as ViewMode, path: '/alerts', icon: AlertTriangle, label: 'Uyarılar', adminOnly: false },
   { id: 'users' as ViewMode, path: '/users', icon: Users, label: 'Kullanıcılar', adminOnly: true },
+  { id: 'logs' as ViewMode, path: '/logs', icon: ScrollText, label: 'Denetim Günlüğü', adminOnly: true },
   { id: 'profile' as ViewMode, path: '/profile', icon: UserCog, label: 'Profil Ayarları', adminOnly: false },
 ];
 

@@ -14,6 +14,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_logs: {
+        Row: {
+          action_type: string
+          created_at: string
+          details: Json | null
+          id: string
+          performed_by: string | null
+          target_product_id: string | null
+          target_user_id: string | null
+        }
+        Insert: {
+          action_type: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          performed_by?: string | null
+          target_product_id?: string | null
+          target_user_id?: string | null
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          performed_by?: string | null
+          target_product_id?: string | null
+          target_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_logs_performed_by_fkey"
+            columns: ["performed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       products: {
         Row: {
           acilis_stok: number
@@ -74,6 +112,8 @@ export type Database = {
           created_at: string
           full_name: string
           id: string
+          is_disabled: boolean
+          last_sign_in: string | null
           updated_at: string
           user_id: string
         }
@@ -82,6 +122,8 @@ export type Database = {
           created_at?: string
           full_name: string
           id?: string
+          is_disabled?: boolean
+          last_sign_in?: string | null
           updated_at?: string
           user_id: string
         }
@@ -90,6 +132,8 @@ export type Database = {
           created_at?: string
           full_name?: string
           id?: string
+          is_disabled?: boolean
+          last_sign_in?: string | null
           updated_at?: string
           user_id?: string
         }

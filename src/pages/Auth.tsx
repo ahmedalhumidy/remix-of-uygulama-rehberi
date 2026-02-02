@@ -49,7 +49,7 @@ export default function Auth() {
 
     try {
       if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
@@ -63,6 +63,21 @@ export default function Auth() {
             toast.error(error.message);
           }
           return;
+        }
+
+        // Check if user is disabled
+        if (data.user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('is_disabled')
+            .eq('user_id', data.user.id)
+            .single();
+
+          if (profile?.is_disabled) {
+            await supabase.auth.signOut();
+            toast.error('Hesabınız devre dışı bırakıldı. Yöneticiyle iletişime geçin.');
+            return;
+          }
         }
         
         toast.success('Giriş başarılı!');

@@ -35,4 +35,27 @@ export interface DashboardStats {
   totalOut: number;
 }
 
-export type ViewMode = 'dashboard' | 'products' | 'movements' | 'locations' | 'alerts' | 'users' | 'profile';
+export type ViewMode = 'dashboard' | 'products' | 'movements' | 'locations' | 'alerts' | 'users' | 'logs' | 'profile';
+
+export interface UserWithRole {
+  user_id: string;
+  email: string;
+  full_name: string;
+  role: 'admin' | 'employee';
+  created_at: string;
+  last_sign_in: string | null;
+  is_disabled: boolean;
+}
+
+export interface AuditLog {
+  id: string;
+  action_type: string;
+  performed_by: string | null;
+  performer_name?: string;
+  target_user_id: string | null;
+  target_user_name?: string;
+  target_product_id: string | null;
+  target_product_name?: string;
+  details: Record<string, any> | null;
+  created_at: string;
+}

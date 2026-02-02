@@ -9,6 +9,7 @@ const viewRoutes: Record<ViewMode, string> = {
   locations: '/locations',
   alerts: '/alerts',
   users: '/users',
+  logs: '/logs',
   profile: '/profile',
 };
 
@@ -19,6 +20,7 @@ const routeToView: Record<string, ViewMode> = {
   '/locations': 'locations',
   '/alerts': 'alerts',
   '/users': 'users',
+  '/logs': 'logs',
   '/profile': 'profile',
 };
 

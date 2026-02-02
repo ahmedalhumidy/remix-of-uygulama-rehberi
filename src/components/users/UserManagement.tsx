@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useAuditLog } from '@/hooks/useAuditLog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Shield, ShieldOff, Users, Loader2, Trash2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Shield, Users, Loader2, UserPlus, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   AlertDialog,
@@ -17,28 +18,27 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-
-interface UserWithRole {
-  user_id: string;
-  email: string;
-  full_name: string;
-  role: 'admin' | 'employee';
-  created_at: string;
-}
+import { UserTable } from './UserTable';
+import { InviteUserDialog } from './InviteUserDialog';
+import { UserWithRole } from '@/types/stock';
 
 export function UserManagement() {
   const { isAdmin, user } = useAuth();
+  const { logAction } = useAuditLog();
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [disabling, setDisabling] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<UserWithRole | null>(null);
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const fetchUsers = async () => {
     try {
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('user_id, full_name, created_at');
+        .select('user_id, full_name, created_at, last_sign_in, is_disabled');
 
       if (profilesError) throw profilesError;
 
@@ -56,6 +56,8 @@ export function UserManagement() {
           full_name: profile.full_name,
           role: (userRole?.role as 'admin' | 'employee') || 'employee',
           created_at: profile.created_at,
+          last_sign_in: profile.last_sign_in,
+          is_disabled: profile.is_disabled,
         };
       });
 
@@ -91,6 +93,12 @@ export function UserManagement() {
 
       if (error) throw error;
 
+      await logAction({
+        action_type: 'role_change',
+        target_user_id: userId,
+        details: { old_role: currentRole, new_role: newRole }
+      });
+
       setUsers(prev => 
         prev.map(u => 
           u.user_id === userId ? { ...u, role: newRole } : u
@@ -110,6 +118,44 @@ export function UserManagement() {
     }
   };
 
+  const toggleDisabled = async (targetUser: UserWithRole) => {
+    if (targetUser.user_id === user?.id) {
+      toast.error('Kendinizi engelleyemezsiniz');
+      return;
+    }
+
+    setDisabling(targetUser.user_id);
+    const newDisabledState = !targetUser.is_disabled;
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ is_disabled: newDisabledState })
+        .eq('user_id', targetUser.user_id);
+
+      if (error) throw error;
+
+      await logAction({
+        action_type: newDisabledState ? 'user_disable' : 'user_enable',
+        target_user_id: targetUser.user_id,
+        details: { user_name: targetUser.full_name }
+      });
+
+      setUsers(prev => 
+        prev.map(u => 
+          u.user_id === targetUser.user_id ? { ...u, is_disabled: newDisabledState } : u
+        )
+      );
+
+      toast.success(newDisabledState ? 'Kullanıcı erişimi engellendi' : 'Kullanıcı erişimi açıldı');
+    } catch (error) {
+      console.error('Error toggling disabled:', error);
+      toast.error('İşlem başarısız');
+    } finally {
+      setDisabling(null);
+    }
+  };
+
   const deleteUser = async (userToDelete: UserWithRole) => {
     if (userToDelete.user_id === user?.id) {
       toast.error('Kendinizi silemezsiniz');
@@ -119,13 +165,18 @@ export function UserManagement() {
     setDeleting(userToDelete.user_id);
 
     try {
-      // Call edge function to delete user completely (including from auth.users)
       const { data, error } = await supabase.functions.invoke('delete-user', {
         body: { userId: userToDelete.user_id }
       });
 
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
+
+      await logAction({
+        action_type: 'user_delete',
+        target_user_id: userToDelete.user_id,
+        details: { user_name: userToDelete.full_name, email: userToDelete.email }
+      });
 
       setUsers(prev => prev.filter(u => u.user_id !== userToDelete.user_id));
       toast.success('Kullanıcı başarıyla silindi');
@@ -137,6 +188,15 @@ export function UserManagement() {
       setDeleteConfirm(null);
     }
   };
+
+  const filteredUsers = users.filter(u => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      u.full_name.toLowerCase().includes(query) ||
+      u.email.toLowerCase().includes(query)
+    );
+  });
 
   if (!isAdmin) {
     return (
@@ -161,90 +221,47 @@ export function UserManagement() {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Users className="w-5 h-5" />
-          Kullanıcı Yönetimi
-          <Badge variant="secondary" className="ml-2">
-            {users.length} kullanıcı
-          </Badge>
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Kullanıcı</TableHead>
-                <TableHead>Yetki</TableHead>
-                <TableHead>Kayıt Tarihi</TableHead>
-                <TableHead className="text-center">İşlemler</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {users.map((u) => (
-                <TableRow key={u.user_id}>
-                  <TableCell className="font-medium">
-                    <div>
-                      <p>{u.full_name}</p>
-                      {u.user_id === user?.id && (
-                        <Badge variant="outline" className="text-xs mt-1">Siz</Badge>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge 
-                      variant={u.role === 'admin' ? 'default' : 'secondary'}
-                      className={u.role === 'admin' ? 'bg-primary' : ''}
-                    >
-                      {u.role === 'admin' ? 'Yönetici' : 'Çalışan'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {new Date(u.created_at).toLocaleDateString('tr-TR')}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <Button
-                      variant={u.role === 'admin' ? 'destructive' : 'default'}
-                      size="sm"
-                      onClick={() => toggleRole(u.user_id, u.role)}
-                      disabled={updating === u.user_id || u.user_id === user?.id}
-                    >
-                      {updating === u.user_id ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : u.role === 'admin' ? (
-                        <>
-                          <ShieldOff className="w-4 h-4 mr-1" />
-                          Yetkiyi Kaldır
-                        </>
-                      ) : (
-                        <>
-                          <Shield className="w-4 h-4 mr-1" />
-                          Yönetici Yap
-                        </>
-                      )}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setDeleteConfirm(u)}
-                      disabled={deleting === u.user_id || u.user_id === user?.id}
-                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                    >
-                      {deleting === u.user_id ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Trash2 className="w-4 h-4" />
-                      )}
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </CardContent>
+    <>
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <CardTitle className="flex items-center gap-2">
+              <Users className="w-5 h-5" />
+              Kullanıcı Yönetimi
+              <Badge variant="secondary" className="ml-2">
+                {users.length} kullanıcı
+              </Badge>
+            </CardTitle>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Kullanıcı ara..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 w-full sm:w-64"
+                />
+              </div>
+              <Button onClick={() => setInviteDialogOpen(true)}>
+                <UserPlus className="w-4 h-4 mr-2" />
+                Kullanıcı Davet Et
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <UserTable
+            users={filteredUsers}
+            currentUserId={user?.id}
+            updating={updating}
+            deleting={deleting}
+            disabling={disabling}
+            onToggleRole={toggleRole}
+            onToggleDisabled={toggleDisabled}
+            onDeleteConfirm={setDeleteConfirm}
+          />
+        </CardContent>
+      </Card>
 
       <AlertDialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
         <AlertDialogContent>
@@ -265,6 +282,12 @@ export function UserManagement() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </Card>
+
+      <InviteUserDialog
+        open={inviteDialogOpen}
+        onOpenChange={setInviteDialogOpen}
+        onUserInvited={fetchUsers}
+      />
+    </>
   );
 }
