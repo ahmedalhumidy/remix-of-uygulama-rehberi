@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { StockMovement, Product } from '@/types/stock';
 import { toast } from 'sonner';
+import { addToOfflineQueue, isOnline } from '@/lib/offlineSync';
 
 export function useMovements(products: Product[]) {
   const [movements, setMovements] = useState<StockMovement[]>([]);
@@ -49,13 +50,33 @@ export function useMovements(products: Product[]) {
     time: string;
     note?: string;
   }) => {
-    try {
-      const product = products.find(p => p.id === data.productId);
-      if (!product) {
-        toast.error('Ürün bulunamadı');
-        return null;
-      }
+    const product = products.find(p => p.id === data.productId);
+    if (!product) {
+      toast.error('Ürün bulunamadı');
+      return null;
+    }
 
+    // Check if offline - queue the action
+    if (!isOnline()) {
+      addToOfflineQueue({
+        type: 'stock_movement',
+        data: {
+          productId: data.productId,
+          type: data.type,
+          quantity: data.quantity,
+          date: data.date,
+          time: data.time,
+          note: data.note,
+        },
+      });
+      
+      toast.info('Çevrimdışı - işlem sıraya eklendi', {
+        description: 'İnternet bağlantısı sağlandığında otomatik senkronize edilecek',
+      });
+      return null;
+    }
+
+    try {
       const { data: session } = await supabase.auth.getSession();
       const userId = session.session?.user.id;
       
