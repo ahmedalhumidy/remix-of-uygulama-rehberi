@@ -106,27 +106,27 @@ export function Dashboard({ products, movements, onViewProduct }: DashboardProps
   };
 
   return (
-    <div className="space-y-5 animate-fade-in">
-      {/* Primary Actions */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="space-y-4 md:space-y-5 animate-fade-in pb-safe">
+      {/* Primary Actions - Mobile optimized */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold text-foreground">Kontrol Paneli</h1>
-          <p className="text-sm text-muted-foreground">Stok durumunuza genel bakış</p>
+          <h1 className="text-lg md:text-xl font-semibold text-foreground">Kontrol Paneli</h1>
+          <p className="text-xs md:text-sm text-muted-foreground">Stok durumunuza genel bakış</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button size="lg" className="shadow-md hover:shadow-lg transition-shadow h-11 px-5">
-            <Plus className="w-4 h-4 mr-2" />
+          <Button size="sm" className="shadow-md hover:shadow-lg transition-shadow h-9 px-3 md:px-5 text-sm flex-1 sm:flex-none">
+            <Plus className="w-4 h-4 mr-1.5" />
             Yeni Ürün
           </Button>
-          <Button size="lg" variant="outline" className="h-11 px-5 border-primary/20 hover:border-primary/40">
-            <ArrowLeftRight className="w-4 h-4 mr-2" />
-            Stok Hareketi
+          <Button size="sm" variant="outline" className="h-9 px-3 md:px-5 border-primary/20 hover:border-primary/40 text-sm flex-1 sm:flex-none">
+            <ArrowLeftRight className="w-4 h-4 mr-1.5" />
+            Hareket
           </Button>
         </div>
       </div>
 
-      {/* Stats Grid - More Compact */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      {/* Stats Grid - Responsive: 2 cols on mobile, 3 on tablet, 6 on desktop */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 md:gap-3">
         <StatCard
           title="Toplam Ürün"
           value={totalProducts}
@@ -158,7 +158,7 @@ export function Dashboard({ products, movements, onViewProduct }: DashboardProps
           compact
         />
         <StatCard
-          title="Bugün Hareket"
+          title="Bugün"
           value={todayMovements.length}
           icon={Activity}
           comparison={{ current: todayMovements.length, previous: yesterdayMovements.length }}
@@ -173,52 +173,52 @@ export function Dashboard({ products, movements, onViewProduct }: DashboardProps
         />
       </div>
 
-      {/* Today's Quick Stats - More Compact */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      {/* Today's Quick Stats - Mobile optimized */}
+      <div className="grid grid-cols-3 gap-2 md:gap-3">
         <Card className="border-border/60 shadow-sm">
-          <CardContent className="p-4">
+          <CardContent className="p-3 md:p-4">
             <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Bugünkü Giriş</p>
-                <p className="text-2xl font-bold text-success tabular-nums">+{todayIn}</p>
+              <div className="space-y-0.5 min-w-0">
+                <p className="text-[10px] md:text-xs font-medium uppercase tracking-wide text-muted-foreground truncate">Giriş</p>
+                <p className="text-lg md:text-2xl font-bold text-success tabular-nums">+{todayIn}</p>
               </div>
-              <div className="p-2.5 rounded-xl bg-success/8">
-                <ArrowUpRight className="w-5 h-5 text-success" />
+              <div className="p-1.5 md:p-2.5 rounded-lg md:rounded-xl bg-success/8 flex-shrink-0">
+                <ArrowUpRight className="w-4 h-4 md:w-5 md:h-5 text-success" />
               </div>
             </div>
           </CardContent>
         </Card>
         <Card className="border-border/60 shadow-sm">
-          <CardContent className="p-4">
+          <CardContent className="p-3 md:p-4">
             <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Bugünkü Çıkış</p>
-                <p className="text-2xl font-bold text-destructive tabular-nums">-{todayOut}</p>
+              <div className="space-y-0.5 min-w-0">
+                <p className="text-[10px] md:text-xs font-medium uppercase tracking-wide text-muted-foreground truncate">Çıkış</p>
+                <p className="text-lg md:text-2xl font-bold text-destructive tabular-nums">-{todayOut}</p>
               </div>
-              <div className="p-2.5 rounded-xl bg-destructive/8">
-                <ArrowDownRight className="w-5 h-5 text-destructive" />
+              <div className="p-1.5 md:p-2.5 rounded-lg md:rounded-xl bg-destructive/8 flex-shrink-0">
+                <ArrowDownRight className="w-4 h-4 md:w-5 md:h-5 text-destructive" />
               </div>
             </div>
           </CardContent>
         </Card>
         <Card className="border-border/60 shadow-sm">
-          <CardContent className="p-4">
+          <CardContent className="p-3 md:p-4">
             <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Bugünkü Net</p>
+              <div className="space-y-0.5 min-w-0">
+                <p className="text-[10px] md:text-xs font-medium uppercase tracking-wide text-muted-foreground truncate">Net</p>
                 <p className={cn(
-                  'text-2xl font-bold tabular-nums',
+                  'text-lg md:text-2xl font-bold tabular-nums',
                   todayIn - todayOut >= 0 ? 'text-success' : 'text-destructive'
                 )}>
                   {todayIn - todayOut >= 0 ? '+' : ''}{todayIn - todayOut}
                 </p>
               </div>
               <div className={cn(
-                'p-2.5 rounded-xl',
+                'p-1.5 md:p-2.5 rounded-lg md:rounded-xl flex-shrink-0',
                 todayIn - todayOut >= 0 ? 'bg-success/8' : 'bg-destructive/8'
               )}>
                 <TrendingUp className={cn(
-                  'w-5 h-5',
+                  'w-4 h-4 md:w-5 md:h-5',
                   todayIn - todayOut >= 0 ? 'text-success' : 'text-destructive'
                 )} />
               </div>
