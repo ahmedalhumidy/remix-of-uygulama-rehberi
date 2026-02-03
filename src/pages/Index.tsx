@@ -1,30 +1,38 @@
-import { useState, lazy, Suspense } from 'react';
-import { Sidebar } from '@/components/layout/Sidebar';
-import { Header } from '@/components/layout/Header';
-import { Dashboard } from '@/components/dashboard/Dashboard';
-import { ProductList } from '@/components/products/ProductList';
-import { ProductModal } from '@/components/products/ProductModal';
-import { StockActionModal } from '@/components/products/StockActionModal';
-import { MovementPage } from '@/components/movements/MovementPage';
-import { LocationView } from '@/components/locations/LocationView';
-import { AlertList } from '@/components/alerts/AlertList';
-import { Product, ViewMode } from '@/types/stock';
-import { useProducts } from '@/hooks/useProducts';
-import { useMovements } from '@/hooks/useMovements';
-import { useAuth } from '@/hooks/useAuth';
-import { useCurrentView } from '@/hooks/useCurrentView';
-import { cn } from '@/lib/utils';
-import { X, LogOut } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { toast } from 'sonner';
+import { useState, lazy, Suspense } from "react";
+import { Sidebar } from "@/components/layout/Sidebar";
+import { Header } from "@/components/layout/Header";
+import { Dashboard } from "@/components/dashboard/Dashboard";
+import { ProductList } from "@/components/products/ProductList";
+import { ProductModal } from "@/components/products/ProductModal";
+import { StockActionModal } from "@/components/products/StockActionModal";
+import { MovementPage } from "@/components/movements/MovementPage";
+import { LocationView } from "@/components/locations/LocationView";
+import { AlertList } from "@/components/alerts/AlertList";
+import { Product, ViewMode } from "@/types/stock";
+import { useProducts } from "@/hooks/useProducts";
+import { useMovements } from "@/hooks/useMovements";
+import { useAuth } from "@/hooks/useAuth";
+import { useCurrentView } from "@/hooks/useCurrentView";
+import { cn } from "@/lib/utils";
+import { X, LogOut } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 // Lazy load heavy pages
-const UserManagement = lazy(() => import('@/components/users/UserManagement').then(m => ({ default: m.UserManagement })));
-const AuditLogList = lazy(() => import('@/components/users/AuditLogList').then(m => ({ default: m.AuditLogList })));
-const ReportsPage = lazy(() => import('@/components/reports/ReportsPage').then(m => ({ default: m.ReportsPage })));
-const ProfileSettings = lazy(() => import('@/components/profile/ProfileSettings').then(m => ({ default: m.ProfileSettings })));
-const SystemSettingsPage = lazy(() => import('@/components/settings/SystemSettingsPage').then(m => ({ default: m.SystemSettingsPage })));
-const ArchiveManagement = lazy(() => import('@/components/archive/ArchiveManagement').then(m => ({ default: m.ArchiveManagement })));
+const UserManagement = lazy(() =>
+  import("@/components/users/UserManagement").then((m) => ({ default: m.UserManagement })),
+);
+const AuditLogList = lazy(() => import("@/components/users/AuditLogList").then((m) => ({ default: m.AuditLogList })));
+const ReportsPage = lazy(() => import("@/components/reports/ReportsPage").then((m) => ({ default: m.ReportsPage })));
+const ProfileSettings = lazy(() =>
+  import("@/components/profile/ProfileSettings").then((m) => ({ default: m.ProfileSettings })),
+);
+const SystemSettingsPage = lazy(() =>
+  import("@/components/settings/SystemSettingsPage").then((m) => ({ default: m.SystemSettingsPage })),
+);
+const ArchiveManagement = lazy(() =>
+  import("@/components/archive/ArchiveManagement").then((m) => ({ default: m.ArchiveManagement })),
+);
 
 // Loading component for lazy loaded pages
 function LazyPageLoader() {
@@ -37,20 +45,27 @@ function LazyPageLoader() {
 
 const Index = () => {
   const { signOut, user } = useAuth();
-  const { products, loading: productsLoading, addProduct, updateProduct, deleteProduct, refreshProducts } = useProducts();
+  const {
+    products,
+    loading: productsLoading,
+    addProduct,
+    updateProduct,
+    deleteProduct,
+    refreshProducts,
+  } = useProducts();
   const { movements, loading: movementsLoading, addMovement, refreshMovements } = useMovements(products);
-  
+
   const { currentView, setCurrentView } = useCurrentView();
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  
+
   // Modals
   const [productModalOpen, setProductModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [stockActionModalOpen, setStockActionModalOpen] = useState(false);
-  const [stockActionType, setStockActionType] = useState<'giris' | 'cikis'>('giris');
+  const [stockActionType, setStockActionType] = useState<"giris" | "cikis">("giris");
 
-  const lowStockCount = products.filter(p => p.mevcutStok < p.minStok).length;
+  const lowStockCount = products.filter((p) => p.mevcutStok < p.minStok).length;
 
   const handleAddProduct = () => {
     setSelectedProduct(null);
@@ -62,8 +77,8 @@ const Index = () => {
     setProductModalOpen(true);
   };
 
-  const handleSaveProduct = async (productData: Omit<Product, 'id'> | Product) => {
-    if ('id' in productData) {
+  const handleSaveProduct = async (productData: Omit<Product, "id"> | Product) => {
+    if ("id" in productData) {
       await updateProduct(productData);
     } else {
       await addProduct(productData);
@@ -74,7 +89,7 @@ const Index = () => {
     await deleteProduct(id);
   };
 
-  const handleStockAction = (product: Product, type: 'giris' | 'cikis') => {
+  const handleStockAction = (product: Product, type: "giris" | "cikis") => {
     setSelectedProduct(product);
     setStockActionType(type);
     setStockActionModalOpen(true);
@@ -87,7 +102,7 @@ const Index = () => {
       productId: selectedProduct.id,
       type: stockActionType,
       quantity,
-      date: new Date().toISOString().split('T')[0],
+      date: new Date().toISOString().split("T")[0],
       time: new Date().toTimeString().slice(0, 5),
       note: note || undefined,
     });
@@ -98,7 +113,7 @@ const Index = () => {
 
   const handleAddMovement = async (data: {
     productId: string;
-    type: 'giris' | 'cikis';
+    type: "giris" | "cikis";
     quantity: number;
     date: string;
     time: string;
@@ -109,7 +124,7 @@ const Index = () => {
   };
 
   const handleViewProduct = (id: string) => {
-    const product = products.find(p => p.id === id);
+    const product = products.find((p) => p.id === id);
     if (product) {
       setSelectedProduct(product);
       setProductModalOpen(true);
@@ -129,28 +144,28 @@ const Index = () => {
   const handleAddNewProductFromMovement = (barcode: string) => {
     setSelectedProduct(null);
     setProductModalOpen(true);
-    toast.info('Yeni ürün ekleyin', {
+    toast.info("Yeni ürün ekleyin", {
       description: `Barkod: ${barcode} - Lütfen ürün bilgilerini doldurun`,
     });
   };
 
   const handleSignOut = async () => {
     await signOut();
-    toast.success('Çıkış yapıldı');
+    toast.success("Çıkış yapıldı");
   };
 
   const viewTitles: Record<ViewMode, string> = {
-    dashboard: 'Kontrol Paneli',
-    products: 'Ürün Yönetimi',
-    movements: 'Stok Hareketleri',
-    locations: 'Konum Yönetimi',
-    alerts: 'Stok Uyarıları',
-    users: 'Kullanıcı Yönetimi',
-    logs: 'Denetim Günlüğü',
-    reports: 'Raporlar ve Analiz',
-    profile: 'Profil Ayarları',
-    settings: 'Sistem Ayarları',
-    archive: 'Arşiv Yönetimi',
+    dashboard: "Kontrol Paneli",
+    products: "Ürün Yönetimi",
+    movements: "Stok Hareketleri",
+    locations: "Konum Yönetimi",
+    alerts: "Stok Uyarıları",
+    users: "Kullanıcı Yönetimi",
+    logs: "Denetim Günlüğü",
+    reports: "Raporlar ve Analiz",
+    profile: "Profil Ayarları",
+    settings: "Sistem Ayarları",
+    archive: "Arşiv Yönetimi",
   };
 
   const isLoading = productsLoading || movementsLoading;
@@ -169,24 +184,25 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Mobile Sidebar */}
-      <div className={cn(
-        'fixed inset-0 z-50 lg:hidden transition-opacity duration-300',
-        mobileMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-      )}>
-        <div 
-          className="absolute inset-0 bg-foreground/20 backdrop-blur-sm"
-          onClick={() => setMobileMenuOpen(false)}
-        />
-        <div className={cn(
-          'relative h-full w-64 transition-transform duration-300',
-          mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
-        )}>
-          <Sidebar 
-            currentView={currentView} 
+      <div
+        className={cn(
+          "fixed inset-0 z-50 lg:hidden transition-opacity duration-300",
+          mobileMenuOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none",
+        )}
+      >
+        <div className="absolute inset-0 bg-foreground/20 backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)} />
+        <div
+          className={cn(
+            "relative h-full w-64 transition-transform duration-300",
+            mobileMenuOpen ? "translate-x-0" : "-translate-x-full",
+          )}
+        >
+          <Sidebar
+            currentView={currentView}
             onViewChange={(view) => {
               setCurrentView(view);
               setMobileMenuOpen(false);
-            }} 
+            }}
             alertCount={lowStockCount}
           />
           <button
@@ -200,16 +216,12 @@ const Index = () => {
 
       {/* Desktop Sidebar */}
       <div className="hidden lg:block">
-        <Sidebar 
-          currentView={currentView} 
-          onViewChange={setCurrentView} 
-          alertCount={lowStockCount}
-        />
+        <Sidebar currentView={currentView} onViewChange={setCurrentView} alertCount={lowStockCount} />
       </div>
 
       {/* Main Content */}
-      <div className="lg:ml-64">
-        <Header 
+      <div className="lg:ml-64 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] px-2 sm:px-4">
+        <Header
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           onAddProduct={handleAddProduct}
@@ -222,7 +234,7 @@ const Index = () => {
 
         <main className="p-3 md:p-6 pb-safe">
           {/* Page Title with Sign Out - Hidden on dashboard to avoid duplication */}
-          {currentView !== 'dashboard' && (
+          {currentView !== "dashboard" && (
             <div className="mb-4 md:mb-6 flex items-center justify-between">
               <div>
                 <h1 className="text-lg md:text-2xl font-bold text-foreground">{viewTitles[currentView]}</h1>
@@ -234,9 +246,9 @@ const Index = () => {
               </Button>
             </div>
           )}
-          
+
           {/* Dashboard has its own header, just show sign out */}
-          {currentView === 'dashboard' && (
+          {currentView === "dashboard" && (
             <div className="flex justify-end mb-3 md:mb-4">
               <Button variant="outline" size="sm" onClick={handleSignOut} className="h-8 md:h-9 text-xs md:text-sm">
                 <LogOut className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5" />
@@ -246,16 +258,12 @@ const Index = () => {
           )}
 
           {/* Content */}
-          {currentView === 'dashboard' && (
-            <Dashboard 
-              products={products} 
-              movements={movements}
-              onViewProduct={handleViewProduct}
-            />
+          {currentView === "dashboard" && (
+            <Dashboard products={products} movements={movements} onViewProduct={handleViewProduct} />
           )}
 
-          {currentView === 'products' && (
-            <ProductList 
+          {currentView === "products" && (
+            <ProductList
               products={products}
               searchQuery={searchQuery}
               onEditProduct={handleEditProduct}
@@ -265,8 +273,8 @@ const Index = () => {
             />
           )}
 
-          {currentView === 'movements' && (
-            <MovementPage 
+          {currentView === "movements" && (
+            <MovementPage
               products={products}
               movements={movements}
               searchQuery={searchQuery}
@@ -275,16 +283,12 @@ const Index = () => {
             />
           )}
 
-          {currentView === 'locations' && (
-            <LocationView 
-              products={products}
-              searchQuery={searchQuery}
-              onViewProduct={handleViewProduct}
-            />
+          {currentView === "locations" && (
+            <LocationView products={products} searchQuery={searchQuery} onViewProduct={handleViewProduct} />
           )}
 
-          {currentView === 'alerts' && (
-            <AlertList 
+          {currentView === "alerts" && (
+            <AlertList
               products={products}
               searchQuery={searchQuery}
               onStockAction={handleStockAction}
@@ -292,37 +296,37 @@ const Index = () => {
             />
           )}
 
-          {currentView === 'users' && (
+          {currentView === "users" && (
             <Suspense fallback={<LazyPageLoader />}>
               <UserManagement />
             </Suspense>
           )}
 
-          {currentView === 'logs' && (
+          {currentView === "logs" && (
             <Suspense fallback={<LazyPageLoader />}>
               <AuditLogList />
             </Suspense>
           )}
 
-          {currentView === 'reports' && (
+          {currentView === "reports" && (
             <Suspense fallback={<LazyPageLoader />}>
               <ReportsPage products={products} movements={movements} />
             </Suspense>
           )}
 
-          {currentView === 'profile' && (
+          {currentView === "profile" && (
             <Suspense fallback={<LazyPageLoader />}>
               <ProfileSettings />
             </Suspense>
           )}
 
-          {currentView === 'settings' && (
+          {currentView === "settings" && (
             <Suspense fallback={<LazyPageLoader />}>
               <SystemSettingsPage />
             </Suspense>
           )}
 
-          {currentView === 'archive' && (
+          {currentView === "archive" && (
             <Suspense fallback={<LazyPageLoader />}>
               <ArchiveManagement />
             </Suspense>
@@ -331,7 +335,7 @@ const Index = () => {
       </div>
 
       {/* Modals */}
-      <ProductModal 
+      <ProductModal
         isOpen={productModalOpen}
         onClose={() => {
           setProductModalOpen(false);
@@ -341,7 +345,7 @@ const Index = () => {
         product={selectedProduct}
       />
 
-      <StockActionModal 
+      <StockActionModal
         isOpen={stockActionModalOpen}
         onClose={() => {
           setStockActionModalOpen(false);
