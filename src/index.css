@@ -123,9 +123,26 @@
     @apply border-border;
   }
 
+  html {
+    /* iOS safe area support */
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+
   body {
     @apply bg-background text-foreground font-sans antialiased;
     font-family: 'Inter', sans-serif;
+    /* Prevent pull-to-refresh on iOS */
+    overscroll-behavior-y: contain;
+    /* Prevent iOS zoom on input focus */
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* iOS standalone mode adjustments */
+  @supports (padding-top: env(safe-area-inset-top)) {
+    body {
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+    }
   }
 
   /* Scrollbar styling */
@@ -141,11 +158,33 @@
   ::-webkit-scrollbar-thumb {
     @apply bg-muted-foreground/30 rounded-full hover:bg-muted-foreground/50 transition-colors;
   }
+
+  /* iOS input zoom fix */
+  input, select, textarea {
+    font-size: 16px !important;
+  }
 }
 
 @layer components {
+  /* Safe area utilities */
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .pb-safe {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+
+  .pt-safe {
+    padding-top: max(0.5rem, env(safe-area-inset-top));
+  }
+
   .stat-card {
-    @apply bg-card rounded-xl p-5 border border-border transition-all duration-300;
+    @apply bg-card rounded-xl p-4 md:p-5 border border-border transition-all duration-300;
     box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.04), 0 1px 2px -1px rgb(0 0 0 / 0.04);
   }
 
@@ -155,7 +194,7 @@
   }
 
   .stat-card-enhanced {
-    @apply bg-card rounded-xl p-5 border border-border/60 transition-all duration-300;
+    @apply bg-card rounded-xl p-4 md:p-5 border border-border/60 transition-all duration-300;
     box-shadow: 0 2px 8px -2px rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.04);
   }
 

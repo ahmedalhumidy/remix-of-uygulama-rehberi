@@ -60,18 +60,18 @@ export function StatCard({
     <div className={cn(
       'stat-card-enhanced animate-fade-in border',
       variantStyles[variant],
-      compact && 'p-4'
+      compact && 'p-3 md:p-4'
     )}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex-1 min-w-0 space-y-1">
+      <div className="flex items-start justify-between gap-2 md:gap-3">
+        <div className="flex-1 min-w-0 space-y-0.5 md:space-y-1">
           <p className={cn(
-            'text-xs font-medium uppercase tracking-wide',
+            'text-[10px] md:text-xs font-medium uppercase tracking-wide truncate',
             isColored ? 'text-white/70' : 'text-muted-foreground'
           )}>
             {title}
           </p>
           <p className={cn(
-            'text-2xl sm:text-3xl font-bold tracking-tight tabular-nums',
+            'text-lg md:text-2xl lg:text-3xl font-bold tracking-tight tabular-nums',
             isColored ? 'text-white' : 'text-foreground'
           )}>
             {value}
@@ -126,10 +126,10 @@ export function StatCard({
 
         {/* Icon with subtle background circle */}
         <div className={cn(
-          'flex-shrink-0 p-3 rounded-xl transition-transform duration-200',
+          'flex-shrink-0 p-2 md:p-3 rounded-lg md:rounded-xl transition-transform duration-200',
           iconBgStyles[variant]
         )}>
-          <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
+          <Icon className="w-4 h-4 md:w-5 md:h-5 lg:w-6 lg:h-6" />
         </div>
       </div>
     </div>

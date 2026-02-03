@@ -29,7 +29,7 @@ export default defineConfig(({ mode }) => ({
     }),
     VitePWA({
       registerType: "prompt",
-      includeAssets: ["favicon.ico", "favicon.png", "robots.txt"],
+      includeAssets: ["favicon.ico", "favicon.png", "robots.txt", "apple-touch-icon.png"],
       manifest: {
         name: "DELUXXS Stok Yönetimi",
         short_name: "DELUXXS",
@@ -39,7 +39,9 @@ export default defineConfig(({ mode }) => ({
         display: "standalone",
         orientation: "portrait",
         scope: "/",
-        start_url: "/",
+        start_url: "/?source=pwa",
+        id: "/",
+        categories: ["business", "productivity"],
         icons: [
           {
             src: "/pwa-192x192.png",
@@ -57,11 +59,19 @@ export default defineConfig(({ mode }) => ({
             type: "image/png",
             purpose: "maskable",
           },
+          {
+            src: "/apple-touch-icon.png",
+            sizes: "180x180",
+            type: "image/png",
+            purpose: "any",
+          },
         ],
       },
       workbox: {
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+        // Don't precache index.html to avoid caching issues on iOS
+        navigateFallback: null,
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/vyoxcjzahqbtwvthknvi\.supabase\.co\/.*/i,
@@ -71,6 +81,17 @@ export default defineConfig(({ mode }) => ({
               expiration: {
                 maxEntries: 50,
                 maxAgeSeconds: 60 * 60 * 24,
+              },
+            },
+          },
+          {
+            urlPattern: /\.(js|css|png|jpg|jpeg|svg|gif|woff2)$/,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "static-assets",
+              expiration: {
+                maxEntries: 100,
+                maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
               },
             },
           },
