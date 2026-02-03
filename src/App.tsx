@@ -8,6 +8,7 @@ import { PermissionsProvider } from "@/hooks/usePermissions";
 import { SystemSettingsProvider } from "@/hooks/useSystemSettings";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import Install from "./pages/Install";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -110,6 +111,7 @@ const AppRoutes = () => (
         <Index />
       </ProtectedRoute>
     } />
+    <Route path="/install" element={<Install />} />
     <Route path="*" element={<NotFound />} />
   </Routes>
 );
