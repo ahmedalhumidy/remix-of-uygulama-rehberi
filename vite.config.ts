@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 import { VitePWA } from "vite-plugin-pwa";
+import viteCompression from "vite-plugin-compression";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -16,8 +17,18 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     mode === "development" && componentTagger(),
+    // Gzip compression
+    viteCompression({
+      algorithm: "gzip",
+      ext: ".gz",
+    }),
+    // Brotli compression
+    viteCompression({
+      algorithm: "brotliCompress",
+      ext: ".br",
+    }),
     VitePWA({
-      registerType: "autoUpdate",
+      registerType: "prompt",
       includeAssets: ["favicon.ico", "favicon.png", "robots.txt"],
       manifest: {
         name: "DELUXXS Stok Yönetimi",
@@ -49,7 +60,7 @@ export default defineConfig(({ mode }) => ({
         ],
       },
       workbox: {
-        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB limit
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
         runtimeCaching: [
           {
@@ -59,7 +70,7 @@ export default defineConfig(({ mode }) => ({
               cacheName: "supabase-cache",
               expiration: {
                 maxEntries: 50,
-                maxAgeSeconds: 60 * 60 * 24, // 24 hours
+                maxAgeSeconds: 60 * 60 * 24,
               },
             },
           },
@@ -67,6 +78,21 @@ export default defineConfig(({ mode }) => ({
       },
     }),
   ].filter(Boolean),
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-ui': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-popover', '@radix-ui/react-select', '@radix-ui/react-tabs', '@radix-ui/react-tooltip'],
+          'vendor-charts': ['recharts'],
+          'vendor-forms': ['react-hook-form', '@hookform/resolvers', 'zod'],
+          'vendor-export': ['jspdf', 'jspdf-autotable', 'xlsx'],
+          'vendor-query': ['@tanstack/react-query'],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 1000,
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

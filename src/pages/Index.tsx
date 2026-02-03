@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
 import { Dashboard } from '@/components/dashboard/Dashboard';
@@ -8,12 +8,6 @@ import { StockActionModal } from '@/components/products/StockActionModal';
 import { MovementPage } from '@/components/movements/MovementPage';
 import { LocationView } from '@/components/locations/LocationView';
 import { AlertList } from '@/components/alerts/AlertList';
-import { UserManagement } from '@/components/users/UserManagement';
-import { AuditLogList } from '@/components/users/AuditLogList';
-import { ReportsPage } from '@/components/reports/ReportsPage';
-import { ProfileSettings } from '@/components/profile/ProfileSettings';
-import { SystemSettingsPage } from '@/components/settings/SystemSettingsPage';
-import { ArchiveManagement } from '@/components/archive/ArchiveManagement';
 import { Product, ViewMode } from '@/types/stock';
 import { useProducts } from '@/hooks/useProducts';
 import { useMovements } from '@/hooks/useMovements';
@@ -23,6 +17,23 @@ import { cn } from '@/lib/utils';
 import { X, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+
+// Lazy load heavy pages
+const UserManagement = lazy(() => import('@/components/users/UserManagement').then(m => ({ default: m.UserManagement })));
+const AuditLogList = lazy(() => import('@/components/users/AuditLogList').then(m => ({ default: m.AuditLogList })));
+const ReportsPage = lazy(() => import('@/components/reports/ReportsPage').then(m => ({ default: m.ReportsPage })));
+const ProfileSettings = lazy(() => import('@/components/profile/ProfileSettings').then(m => ({ default: m.ProfileSettings })));
+const SystemSettingsPage = lazy(() => import('@/components/settings/SystemSettingsPage').then(m => ({ default: m.SystemSettingsPage })));
+const ArchiveManagement = lazy(() => import('@/components/archive/ArchiveManagement').then(m => ({ default: m.ArchiveManagement })));
+
+// Loading component for lazy loaded pages
+function LazyPageLoader() {
+  return (
+    <div className="flex items-center justify-center py-12">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+    </div>
+  );
+}
 
 const Index = () => {
   const { signOut, user } = useAuth();
@@ -270,27 +281,39 @@ const Index = () => {
           )}
 
           {currentView === 'users' && (
-            <UserManagement />
+            <Suspense fallback={<LazyPageLoader />}>
+              <UserManagement />
+            </Suspense>
           )}
 
           {currentView === 'logs' && (
-            <AuditLogList />
+            <Suspense fallback={<LazyPageLoader />}>
+              <AuditLogList />
+            </Suspense>
           )}
 
           {currentView === 'reports' && (
-            <ReportsPage products={products} movements={movements} />
+            <Suspense fallback={<LazyPageLoader />}>
+              <ReportsPage products={products} movements={movements} />
+            </Suspense>
           )}
 
           {currentView === 'profile' && (
-            <ProfileSettings />
+            <Suspense fallback={<LazyPageLoader />}>
+              <ProfileSettings />
+            </Suspense>
           )}
 
           {currentView === 'settings' && (
-            <SystemSettingsPage />
+            <Suspense fallback={<LazyPageLoader />}>
+              <SystemSettingsPage />
+            </Suspense>
           )}
 
           {currentView === 'archive' && (
-            <ArchiveManagement />
+            <Suspense fallback={<LazyPageLoader />}>
+              <ArchiveManagement />
+            </Suspense>
           )}
         </main>
       </div>
