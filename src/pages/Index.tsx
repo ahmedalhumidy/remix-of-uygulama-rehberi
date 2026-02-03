@@ -220,7 +220,7 @@ const Index = () => {
       </div>
 
       {/* Main Content */}
-      <div className="lg:ml-64 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] px-2 sm:px-4">
+      <div className="lg:ml-64 pb-[env(safe-area-inset-bottom)] px-2 sm:px-4">
         <Header
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
