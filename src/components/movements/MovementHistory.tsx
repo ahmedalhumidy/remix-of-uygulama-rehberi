@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowUpRight, ArrowDownRight, Calendar, User, Clock, Package, Filter, Download } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Calendar, User, Clock, Package, Filter, Download, MapPin } from 'lucide-react';
 import { StockMovement } from '@/types/stock';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -30,9 +30,13 @@ export function MovementHistory({ movements, searchQuery }: MovementHistoryProps
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [handlerFilter, setHandlerFilter] = useState('all');
+  const [shelfFilter, setShelfFilter] = useState('all');
 
   // Get unique handlers
   const handlers = [...new Set(movements.map(m => m.handledBy))];
+  
+  // Get unique shelves
+  const shelvesList = [...new Set(movements.filter(m => m.shelfName).map(m => m.shelfName!))];
 
   const filteredMovements = movements.filter(movement => {
     const query = searchQuery.toLowerCase();
@@ -40,15 +44,17 @@ export function MovementHistory({ movements, searchQuery }: MovementHistoryProps
       movement.productName.toLowerCase().includes(query) ||
       movement.handledBy.toLowerCase().includes(query) ||
       movement.note?.toLowerCase().includes(query) ||
+      movement.shelfName?.toLowerCase().includes(query) ||
       movement.date.includes(query);
     
     const matchesType = typeFilter === 'all' || movement.type === typeFilter;
     const matchesHandler = handlerFilter === 'all' || movement.handledBy === handlerFilter;
+    const matchesShelf = shelfFilter === 'all' || movement.shelfName === shelfFilter;
     
     const matchesDateFrom = !dateFrom || movement.date >= dateFrom;
     const matchesDateTo = !dateTo || movement.date <= dateTo;
 
-    return matchesSearch && matchesType && matchesHandler && matchesDateFrom && matchesDateTo;
+    return matchesSearch && matchesType && matchesHandler && matchesShelf && matchesDateFrom && matchesDateTo;
   });
 
   // Sort by date descending
@@ -60,13 +66,14 @@ export function MovementHistory({ movements, searchQuery }: MovementHistoryProps
 
   const handleExport = () => {
     const csvContent = [
-      ['Tarih', 'Saat', 'Ürün', 'İşlem', 'Miktar', 'Personel', 'Not'].join(','),
+      ['Tarih', 'Saat', 'Ürün', 'İşlem', 'Miktar', 'Raf', 'Personel', 'Not'].join(','),
       ...sortedMovements.map(m => [
         m.date,
         m.time || '-',
         `"${m.productName}"`,
         m.type === 'giris' ? 'Giriş' : 'Çıkış',
         m.quantity,
+        `"${m.shelfName || '-'}"`,
         `"${m.handledBy}"`,
         `"${m.note || '-'}"`
       ].join(','))
@@ -88,7 +95,7 @@ export function MovementHistory({ movements, searchQuery }: MovementHistoryProps
           <h3 className="font-medium text-foreground">Filtreler</h3>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
           <div className="space-y-2">
             <label className="text-sm text-muted-foreground">İşlem Tipi</label>
             <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as typeof typeFilter)}>
@@ -99,6 +106,21 @@ export function MovementHistory({ movements, searchQuery }: MovementHistoryProps
                 <SelectItem value="all">Tümü</SelectItem>
                 <SelectItem value="giris">Giriş</SelectItem>
                 <SelectItem value="cikis">Çıkış</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm text-muted-foreground">Raf</label>
+            <Select value={shelfFilter} onValueChange={setShelfFilter}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tümü</SelectItem>
+                {shelvesList.map(shelf => (
+                  <SelectItem key={shelf} value={shelf}>{shelf}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -160,6 +182,7 @@ export function MovementHistory({ movements, searchQuery }: MovementHistoryProps
               <TableHead>İşlem</TableHead>
               <TableHead>Ürün</TableHead>
               <TableHead>Miktar</TableHead>
+              <TableHead>Raf</TableHead>
               <TableHead>Tarih & Saat</TableHead>
               <TableHead>Personel</TableHead>
               <TableHead>Not</TableHead>
@@ -205,6 +228,16 @@ export function MovementHistory({ movements, searchQuery }: MovementHistoryProps
                   )}>
                     {movement.type === 'giris' ? '+' : '-'}{movement.quantity}
                   </span>
+                </TableCell>
+                <TableCell>
+                  {movement.shelfName ? (
+                    <div className="flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5 text-primary" />
+                      <span className="text-sm font-medium">{movement.shelfName}</span>
+                    </div>
+                  ) : (
+                    <span className="text-sm text-muted-foreground">-</span>
+                  )}
                 </TableCell>
                 <TableCell>
                   <div className="flex flex-col gap-1">

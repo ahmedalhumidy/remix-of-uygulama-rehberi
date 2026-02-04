@@ -117,6 +117,9 @@ export function ProductList({
                 <th className="text-right py-4 px-4 text-sm font-medium text-muted-foreground">
                   <SortButton field="mevcutStok" label="Stok" />
                 </th>
+                <th className="text-right py-4 px-4 text-sm font-medium text-muted-foreground">
+                  Set
+                </th>
                 <th className="text-center py-4 px-4 text-sm font-medium text-muted-foreground">
                   Durum
                 </th>
@@ -163,6 +166,11 @@ export function ProductList({
                       </span>
                       <span className="text-muted-foreground text-sm ml-1">
                         / {product.minStok}
+                      </span>
+                    </td>
+                    <td className="py-4 px-4 text-right">
+                      <span className="font-medium text-muted-foreground">
+                        {product.setStok || 0}
                       </span>
                     </td>
                     <td className="py-4 px-4 text-center">
@@ -271,14 +279,22 @@ export function ProductList({
                   <MapPin className="w-4 h-4" />
                   <span>{product.rafKonum}</span>
                 </div>
-                <div>
-                  <span className={cn(
-                    'font-semibold text-lg',
-                    isLowStock ? 'text-destructive' : 'text-foreground'
-                  )}>
-                    {product.mevcutStok}
-                  </span>
-                  <span className="text-muted-foreground ml-1">/ {product.minStok}</span>
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <span className={cn(
+                      'font-semibold text-lg',
+                      isLowStock ? 'text-destructive' : 'text-foreground'
+                    )}>
+                      {product.mevcutStok}
+                    </span>
+                    <span className="text-muted-foreground ml-1">/ {product.minStok}</span>
+                  </div>
+                  {(product.setStok || 0) > 0 && (
+                    <div className="text-right border-l pl-3 border-border">
+                      <span className="text-sm text-muted-foreground">Set: </span>
+                      <span className="font-medium">{product.setStok}</span>
+                    </div>
+                  )}
                 </div>
               </div>
               

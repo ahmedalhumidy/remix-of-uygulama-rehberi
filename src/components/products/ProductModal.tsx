@@ -11,21 +11,28 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { ShelfSelector } from '@/components/shelves/ShelfSelector';
+import { useShelves, Shelf } from '@/hooks/useShelves';
 
 interface ProductModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (product: Omit<Product, 'id'> | Product) => void;
   product?: Product | null;
+  initialBarcode?: string;
 }
 
-export function ProductModal({ isOpen, onClose, onSave, product }: ProductModalProps) {
+export function ProductModal({ isOpen, onClose, onSave, product, initialBarcode }: ProductModalProps) {
+  const { shelves, addShelf } = useShelves();
+  const [selectedShelfId, setSelectedShelfId] = useState<string | undefined>();
+  
   const [formData, setFormData] = useState({
     urunKodu: '',
     urunAdi: '',
     rafKonum: '',
     barkod: '',
     mevcutStok: 0,
+    setStok: 0,
     minStok: 5,
     not: '',
   });
@@ -38,21 +45,32 @@ export function ProductModal({ isOpen, onClose, onSave, product }: ProductModalP
         rafKonum: product.rafKonum,
         barkod: product.barkod || '',
         mevcutStok: product.mevcutStok,
+        setStok: product.setStok || 0,
         minStok: product.minStok,
         not: product.not || '',
       });
+      // Find matching shelf
+      const matchingShelf = shelves.find(s => s.name === product.rafKonum);
+      setSelectedShelfId(matchingShelf?.id);
     } else {
       setFormData({
         urunKodu: '',
         urunAdi: '',
         rafKonum: '',
-        barkod: '',
+        barkod: initialBarcode || '',
         mevcutStok: 0,
+        setStok: 0,
         minStok: 5,
         not: '',
       });
+      setSelectedShelfId(undefined);
     }
-  }, [product, isOpen]);
+  }, [product, isOpen, initialBarcode, shelves]);
+
+  const handleShelfSelect = (shelf: Shelf) => {
+    setSelectedShelfId(shelf.id);
+    setFormData({ ...formData, rafKonum: shelf.name });
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -118,18 +136,19 @@ export function ProductModal({ isOpen, onClose, onSave, product }: ProductModalP
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="rafKonum">Raf / Konum *</Label>
-            <Input
-              id="rafKonum"
-              value={formData.rafKonum}
-              onChange={(e) => setFormData({ ...formData, rafKonum: e.target.value })}
-              placeholder="Örn: D-8(1)"
-              required
-            />
-          </div>
+          {/* Shelf Selector */}
+          <ShelfSelector
+            shelves={shelves}
+            selectedShelfId={selectedShelfId}
+            selectedShelfName={formData.rafKonum}
+            onSelect={handleShelfSelect}
+            onAddNew={addShelf}
+            label="Raf / Konum"
+            placeholder="Raf seçin veya yeni ekleyin..."
+            required
+          />
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="mevcutStok">Mevcut Stok</Label>
               <Input
@@ -138,6 +157,16 @@ export function ProductModal({ isOpen, onClose, onSave, product }: ProductModalP
                 min="0"
                 value={formData.mevcutStok}
                 onChange={(e) => setFormData({ ...formData, mevcutStok: parseInt(e.target.value) || 0 })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="setStok">Set Stok</Label>
+              <Input
+                id="setStok"
+                type="number"
+                min="0"
+                value={formData.setStok}
+                onChange={(e) => setFormData({ ...formData, setStok: parseInt(e.target.value) || 0 })}
               />
             </div>
             <div className="space-y-2">

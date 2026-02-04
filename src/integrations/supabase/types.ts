@@ -246,6 +246,7 @@ export type Database = {
           min_stok: number
           notes: string | null
           raf_konum: string
+          set_stok: number
           son_islem_tarihi: string | null
           toplam_cikis: number
           toplam_giris: number
@@ -266,6 +267,7 @@ export type Database = {
           min_stok?: number
           notes?: string | null
           raf_konum: string
+          set_stok?: number
           son_islem_tarihi?: string | null
           toplam_cikis?: number
           toplam_giris?: number
@@ -286,6 +288,7 @@ export type Database = {
           min_stok?: number
           notes?: string | null
           raf_konum?: string
+          set_stok?: number
           son_islem_tarihi?: string | null
           toplam_cikis?: number
           toplam_giris?: number
@@ -355,6 +358,30 @@ export type Database = {
         }
         Relationships: []
       }
+      shelves: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       stock_movements: {
         Row: {
           created_at: string
@@ -370,6 +397,7 @@ export type Database = {
           notes: string | null
           product_id: string
           quantity: number
+          shelf_id: string | null
         }
         Insert: {
           created_at?: string
@@ -385,6 +413,7 @@ export type Database = {
           notes?: string | null
           product_id: string
           quantity: number
+          shelf_id?: string | null
         }
         Update: {
           created_at?: string
@@ -400,6 +429,7 @@ export type Database = {
           notes?: string | null
           product_id?: string
           quantity?: number
+          shelf_id?: string | null
         }
         Relationships: [
           {
@@ -421,6 +451,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movements_shelf_id_fkey"
+            columns: ["shelf_id"]
+            isOneToOne: false
+            referencedRelation: "shelves"
             referencedColumns: ["id"]
           },
         ]

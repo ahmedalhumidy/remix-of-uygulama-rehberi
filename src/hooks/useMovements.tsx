@@ -12,7 +12,7 @@ export function useMovements(products: Product[]) {
     try {
       const { data, error } = await supabase
         .from('stock_movements')
-        .select('*, products(urun_adi)')
+        .select('*, products(urun_adi), shelves(name)')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -27,6 +27,8 @@ export function useMovements(products: Product[]) {
         time: m.movement_time?.slice(0, 5) || undefined,
         handledBy: m.handled_by,
         note: m.notes || undefined,
+        shelfId: m.shelf_id || undefined,
+        shelfName: (m.shelves as any)?.name || undefined,
       }));
 
       setMovements(mappedMovements);
@@ -49,6 +51,7 @@ export function useMovements(products: Product[]) {
     date: string;
     time: string;
     note?: string;
+    shelfId?: string;
   }) => {
     const product = products.find(p => p.id === data.productId);
     if (!product) {
@@ -108,8 +111,9 @@ export function useMovements(products: Product[]) {
           handled_by: profile.full_name,
           notes: data.note || null,
           created_by: userId,
+          shelf_id: data.shelfId || null,
         })
-        .select()
+        .select('*, shelves(name)')
         .single();
 
       if (error) throw error;
@@ -124,6 +128,8 @@ export function useMovements(products: Product[]) {
         time: newMovement.movement_time?.slice(0, 5) || undefined,
         handledBy: newMovement.handled_by,
         note: newMovement.notes || undefined,
+        shelfId: newMovement.shelf_id || undefined,
+        shelfName: (newMovement.shelves as any)?.name || undefined,
       };
 
       setMovements(prev => [mappedMovement, ...prev]);

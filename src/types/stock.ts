@@ -8,6 +8,7 @@ export interface Product {
   toplamGiris: number;
   toplamCikis: number;
   mevcutStok: number;
+  setStok: number;
   minStok: number;
   uyari: boolean;
   sonIslemTarihi?: string;
@@ -24,6 +25,8 @@ export interface StockMovement {
   time?: string;
   handledBy: string;
   note?: string;
+  shelfId?: string;
+  shelfName?: string;
 }
 
 export interface DashboardStats {

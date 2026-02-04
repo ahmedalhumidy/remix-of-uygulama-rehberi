@@ -18,6 +18,8 @@ import { cn } from '@/lib/utils';
 import { BarcodeScanner } from '@/components/scanner/BarcodeScanner';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { ShelfSelector } from '@/components/shelves/ShelfSelector';
+import { useShelves, Shelf } from '@/hooks/useShelves';
 
 interface MovementFormProps {
   products: Product[];
@@ -28,6 +30,7 @@ interface MovementFormProps {
     date: string;
     time: string;
     note?: string;
+    shelfId?: string;
   }) => void;
   onAddNewProduct?: (barcode: string) => void;
 }
@@ -44,7 +47,9 @@ export function MovementForm({ products, onSubmit, onAddNewProduct }: MovementFo
   const [autoSubmitReady, setAutoSubmitReady] = useState(false);
   const [openProductCombobox, setOpenProductCombobox] = useState(false);
   const [currentUserName, setCurrentUserName] = useState<string | null>(null);
+  const [selectedShelfId, setSelectedShelfId] = useState<string | undefined>();
 
+  const { shelves, addShelf } = useShelves();
   const selectedProduct = products.find(p => p.id === productId);
 
   // Fetch current user's profile name on mount
@@ -62,6 +67,16 @@ export function MovementForm({ products, onSubmit, onAddNewProduct }: MovementFo
     };
     fetchUserProfile();
   }, []);
+
+  // Auto-select shelf when product is selected
+  useEffect(() => {
+    if (selectedProduct && selectedProduct.rafKonum) {
+      const matchingShelf = shelves.find(s => s.name === selectedProduct.rafKonum);
+      if (matchingShelf) {
+        setSelectedShelfId(matchingShelf.id);
+      }
+    }
+  }, [selectedProduct, shelves]);
 
   const handleBarcodeScan = (code: string) => {
     const product = products.find(p => p.barkod === code || p.urunKodu === code);
@@ -89,6 +104,10 @@ export function MovementForm({ products, onSubmit, onAddNewProduct }: MovementFo
     }
   };
 
+  const handleShelfSelect = (shelf: Shelf) => {
+    setSelectedShelfId(shelf.id);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!productId) return;
@@ -100,12 +119,15 @@ export function MovementForm({ products, onSubmit, onAddNewProduct }: MovementFo
       date,
       time,
       note: note || undefined,
+      shelfId: selectedShelfId,
     });
 
     // Reset form
     setProductId('');
     setQuantity(1);
     setNote('');
+    setSelectedShelfId(undefined);
+    setAutoSubmitReady(false);
   };
 
   return (
@@ -347,6 +369,16 @@ export function MovementForm({ products, onSubmit, onAddNewProduct }: MovementFo
           </div>
         )}
       </div>
+
+      {/* Shelf Selection */}
+      <ShelfSelector
+        shelves={shelves}
+        selectedShelfId={selectedShelfId}
+        onSelect={handleShelfSelect}
+        onAddNew={addShelf}
+        label={type === 'giris' ? 'Giriş Yapılacak Raf' : 'Çıkış Yapılacak Raf'}
+        placeholder="Raf seçin..."
+      />
 
       {/* Quantity */}
       <div className="space-y-2">
