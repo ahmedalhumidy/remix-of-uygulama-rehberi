@@ -237,6 +237,7 @@ const Index = () => {
           products={products}
           onProductFound={handleScanProductFound}
           onBarcodeNotFound={handleScanBarcodeNotFound}
+          onStockUpdated={refreshProducts}
         />
 
         <main className="p-3 md:p-6 pb-safe">
@@ -352,6 +353,7 @@ const Index = () => {
         onSave={handleSaveProduct}
         product={selectedProduct}
         initialBarcode={pendingBarcode}
+        onStockUpdated={refreshProducts}
       />
 
       <StockActionModal
@@ -360,7 +362,9 @@ const Index = () => {
           setStockActionModalOpen(false);
           setSelectedProduct(null);
         }}
-        onConfirm={handleStockActionConfirm}
+        onSuccess={() => {
+          refreshProducts();
+        }}
         product={selectedProduct}
         actionType={stockActionType}
       />

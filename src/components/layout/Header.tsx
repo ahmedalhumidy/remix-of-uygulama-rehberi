@@ -15,6 +15,7 @@ interface HeaderProps {
   products: Product[];
   onProductFound: (product: Product) => void;
   onBarcodeNotFound: (barcode: string) => void;
+  onStockUpdated?: () => void;
 }
 
 export function Header({ 
@@ -26,6 +27,7 @@ export function Header({
   products,
   onProductFound,
   onBarcodeNotFound,
+  onStockUpdated,
 }: HeaderProps) {
   const { hasPermission } = usePermissions();
   const canCreateProducts = hasPermission('products.create');
@@ -62,6 +64,7 @@ export function Header({
             products={products}
             onProductFound={onProductFound}
             onBarcodeNotFound={onBarcodeNotFound}
+            onStockUpdated={onStockUpdated}
           />
 
           {/* Notification Center */}

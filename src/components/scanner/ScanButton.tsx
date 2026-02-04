@@ -3,6 +3,7 @@ import { ScanBarcode } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Product } from '@/types/stock';
 import { toast } from 'sonner';
+import { BarcodeResultModal } from './BarcodeResultModal';
 
 const LazyBarcodeScanner = lazy(() => import('./BarcodeScanner').then(m => ({ default: m.BarcodeScanner })));
 
@@ -10,10 +11,14 @@ interface ScanButtonProps {
   products: Product[];
   onProductFound: (product: Product) => void;
   onBarcodeNotFound: (barcode: string) => void;
+  onStockUpdated?: () => void;
 }
 
-export function ScanButton({ products, onProductFound, onBarcodeNotFound }: ScanButtonProps) {
+export function ScanButton({ products, onProductFound, onBarcodeNotFound, onStockUpdated }: ScanButtonProps) {
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [resultModalOpen, setResultModalOpen] = useState(false);
+  const [scannedProduct, setScannedProduct] = useState<Product | null>(null);
+  const [scannedBarcode, setScannedBarcode] = useState<string | null>(null);
 
   const handleScan = useCallback((code: string) => {
     // Search by barcode or product code
@@ -21,14 +26,32 @@ export function ScanButton({ products, onProductFound, onBarcodeNotFound }: Scan
       (p) => p.barkod === code || p.urunKodu === code
     );
 
+    setScannedBarcode(code);
+    setScannedProduct(product || null);
+    setResultModalOpen(true);
+
     if (product) {
       toast.success(`Ürün bulundu: ${product.urunAdi}`);
-      onProductFound(product);
     } else {
-      toast.error(`Barkod bulunamadı: ${code}`);
-      onBarcodeNotFound(code);
+      toast.info(`Barkod bulunamadı: ${code}`);
     }
-  }, [products, onBarcodeNotFound, onProductFound]);
+  }, [products]);
+
+  const handleResultClose = () => {
+    setResultModalOpen(false);
+    setScannedProduct(null);
+    setScannedBarcode(null);
+  };
+
+  const handleAddNewProduct = (barcode: string) => {
+    handleResultClose();
+    onBarcodeNotFound(barcode);
+  };
+
+  const handleStockSuccess = () => {
+    onStockUpdated?.();
+    handleResultClose();
+  };
 
   return (
     <>
@@ -51,6 +74,16 @@ export function ScanButton({ products, onProductFound, onBarcodeNotFound }: Scan
           />
         </Suspense>
       )}
+
+      {/* Quick stock action modal after barcode scan */}
+      <BarcodeResultModal
+        isOpen={resultModalOpen}
+        onClose={handleResultClose}
+        product={scannedProduct}
+        barcode={scannedBarcode}
+        onAddNewProduct={handleAddNewProduct}
+        onStockUpdated={handleStockSuccess}
+      />
     </>
   );
 }
