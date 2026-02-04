@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
 import { Product } from '@/types/stock';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,16 +12,17 @@ import {
 } from '@/components/ui/dialog';
 import { ShelfSelector } from '@/components/shelves/ShelfSelector';
 import { useShelves, Shelf } from '@/hooks/useShelves';
-
+import { QuickStockInput } from '@/components/stock/QuickStockInput';
 interface ProductModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (product: Omit<Product, 'id'> | Product) => void;
   product?: Product | null;
   initialBarcode?: string;
+  onStockUpdated?: () => void;
 }
 
-export function ProductModal({ isOpen, onClose, onSave, product, initialBarcode }: ProductModalProps) {
+export function ProductModal({ isOpen, onClose, onSave, product, initialBarcode, onStockUpdated }: ProductModalProps) {
   const { shelves, addShelf } = useShelves();
   const [selectedShelfId, setSelectedShelfId] = useState<string | undefined>();
   
@@ -148,38 +148,69 @@ export function ProductModal({ isOpen, onClose, onSave, product, initialBarcode 
             required
           />
 
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="mevcutStok">Mevcut Stok</Label>
-              <Input
-                id="mevcutStok"
-                type="number"
-                min="0"
-                value={formData.mevcutStok}
-                onChange={(e) => setFormData({ ...formData, mevcutStok: parseInt(e.target.value) || 0 })}
+          {/* Quick Stock Input for existing products */}
+          {product && (
+            <div className="border-t border-b border-border py-4 my-2">
+              <Label className="text-sm font-medium mb-2 block">Hızlı Stok Hareketi</Label>
+              <QuickStockInput 
+                product={product} 
+                onSuccess={onStockUpdated}
+                showShelfSelector={false}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="setStok">Set Stok</Label>
-              <Input
-                id="setStok"
-                type="number"
-                min="0"
-                value={formData.setStok}
-                onChange={(e) => setFormData({ ...formData, setStok: parseInt(e.target.value) || 0 })}
-              />
+          )}
+
+          {/* For new products, show initial stock inputs */}
+          {!product && (
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="mevcutStok">Başlangıç Stok</Label>
+                <Input
+                  id="mevcutStok"
+                  type="number"
+                  min="0"
+                  value={formData.mevcutStok}
+                  onChange={(e) => setFormData({ ...formData, mevcutStok: parseInt(e.target.value) || 0 })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="setStok">Başlangıç Set</Label>
+                <Input
+                  id="setStok"
+                  type="number"
+                  min="0"
+                  value={formData.setStok}
+                  onChange={(e) => setFormData({ ...formData, setStok: parseInt(e.target.value) || 0 })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="minStok">Minimum Stok</Label>
+                <Input
+                  id="minStok"
+                  type="number"
+                  min="0"
+                  value={formData.minStok}
+                  onChange={(e) => setFormData({ ...formData, minStok: parseInt(e.target.value) || 0 })}
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="minStok">Minimum Stok</Label>
-              <Input
-                id="minStok"
-                type="number"
-                min="0"
-                value={formData.minStok}
-                onChange={(e) => setFormData({ ...formData, minStok: parseInt(e.target.value) || 0 })}
-              />
+          )}
+
+          {/* Min stock for existing products */}
+          {product && (
+            <div className="w-1/3">
+              <div className="space-y-2">
+                <Label htmlFor="minStok">Minimum Stok</Label>
+                <Input
+                  id="minStok"
+                  type="number"
+                  min="0"
+                  value={formData.minStok}
+                  onChange={(e) => setFormData({ ...formData, minStok: parseInt(e.target.value) || 0 })}
+                />
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="not">Not</Label>
