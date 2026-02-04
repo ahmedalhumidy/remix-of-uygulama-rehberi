@@ -164,13 +164,14 @@ export function ProductModal({ isOpen, onClose, onSave, product, initialBarcode,
           {!product && (
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="mevcutStok">Başlangıç Stok</Label>
+                <Label htmlFor="mevcutStok">Başlangıç Stok (Adet)</Label>
                 <Input
                   id="mevcutStok"
                   type="number"
                   min="0"
                   value={formData.mevcutStok}
                   onChange={(e) => setFormData({ ...formData, mevcutStok: parseInt(e.target.value) || 0 })}
+                  placeholder="0"
                 />
               </div>
               <div className="space-y-2">
@@ -181,6 +182,7 @@ export function ProductModal({ isOpen, onClose, onSave, product, initialBarcode,
                   min="0"
                   value={formData.setStok}
                   onChange={(e) => setFormData({ ...formData, setStok: parseInt(e.target.value) || 0 })}
+                  placeholder="0"
                 />
               </div>
               <div className="space-y-2">
@@ -191,6 +193,7 @@ export function ProductModal({ isOpen, onClose, onSave, product, initialBarcode,
                   min="0"
                   value={formData.minStok}
                   onChange={(e) => setFormData({ ...formData, minStok: parseInt(e.target.value) || 0 })}
+                  placeholder="5"
                 />
               </div>
             </div>
