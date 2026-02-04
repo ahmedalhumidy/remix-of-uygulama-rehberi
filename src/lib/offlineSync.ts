@@ -8,9 +8,11 @@ export interface SyncAction {
     productId: string;
     type: 'giris' | 'cikis';
     quantity: number;
+    setQuantity?: number;
     date: string;
     time: string;
     note?: string;
+    shelfId?: string;
   };
   timestamp: number;
   retries: number;

@@ -96,16 +96,18 @@ const Index = () => {
     setStockActionModalOpen(true);
   };
 
-  const handleStockActionConfirm = async (quantity: number, note: string) => {
+  const handleStockActionConfirm = async (quantity: number, setQuantity: number, note: string, shelfId?: string) => {
     if (!selectedProduct) return;
 
     await addMovement({
       productId: selectedProduct.id,
       type: stockActionType,
       quantity,
+      setQuantity,
       date: new Date().toISOString().split("T")[0],
       time: new Date().toTimeString().slice(0, 5),
       note: note || undefined,
+      shelfId,
     });
 
     // Refresh products to get updated stock
@@ -116,6 +118,7 @@ const Index = () => {
     productId: string;
     type: "giris" | "cikis";
     quantity: number;
+    setQuantity?: number;
     date: string;
     time: string;
     note?: string;

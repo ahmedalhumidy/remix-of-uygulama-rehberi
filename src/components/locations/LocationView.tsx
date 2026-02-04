@@ -122,6 +122,7 @@ export function LocationView({ products, searchQuery, onViewProduct }: LocationV
         {filteredLocations.map((location, index) => {
           const locationProducts = locationGroups[location];
           const totalStock = locationProducts.reduce((sum, p) => sum + p.mevcutStok, 0);
+          const totalSetStock = locationProducts.reduce((sum, p) => sum + p.setStok, 0);
           const lowStockCount = locationProducts.filter(p => p.mevcutStok < p.minStok).length;
           const shelf = shelves.find(s => s.name === location);
 
@@ -197,9 +198,16 @@ export function LocationView({ products, searchQuery, onViewProduct }: LocationV
                 })}
               </div>
 
-              <div className="mt-4 pt-3 border-t border-border flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Toplam Stok</span>
-                <span className="font-semibold text-foreground">{totalStock}</span>
+              <div className="mt-4 pt-3 border-t border-border">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Toplam</span>
+                  <div className="text-right">
+                    <span className="font-semibold text-foreground">{totalStock} adet</span>
+                    {totalSetStock > 0 && (
+                      <span className="text-sm text-muted-foreground ml-2">+ {totalSetStock} set</span>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           );

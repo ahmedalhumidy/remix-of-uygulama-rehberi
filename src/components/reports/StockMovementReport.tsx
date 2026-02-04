@@ -29,9 +29,12 @@ export function StockMovementReport({ products, movements, filters }: StockMovem
   const stats = useMemo(() => {
     const totalIn = filteredMovements.filter(m => m.type === 'giris').reduce((sum, m) => sum + m.quantity, 0);
     const totalOut = filteredMovements.filter(m => m.type === 'cikis').reduce((sum, m) => sum + m.quantity, 0);
+    const totalSetIn = filteredMovements.filter(m => m.type === 'giris').reduce((sum, m) => sum + (m.setQuantity || 0), 0);
+    const totalSetOut = filteredMovements.filter(m => m.type === 'cikis').reduce((sum, m) => sum + (m.setQuantity || 0), 0);
     const netChange = totalIn - totalOut;
+    const netSetChange = totalSetIn - totalSetOut;
     
-    return { totalIn, totalOut, netChange, count: filteredMovements.length };
+    return { totalIn, totalOut, totalSetIn, totalSetOut, netChange, netSetChange, count: filteredMovements.length };
   }, [filteredMovements]);
 
   const dailyData = useMemo(() => {
@@ -58,6 +61,8 @@ export function StockMovementReport({ products, movements, filters }: StockMovem
       product: m.productName,
       type: m.type === 'giris' ? 'Giriş' : 'Çıkış',
       quantity: m.quantity,
+      setQuantity: m.setQuantity || 0,
+      shelf: m.shelfName || '-',
       handledBy: m.handledBy,
       note: m.note || '-',
     }));
@@ -68,7 +73,9 @@ export function StockMovementReport({ products, movements, filters }: StockMovem
     { header: 'Saat', key: 'time', width: 8 },
     { header: 'Ürün', key: 'product', width: 25 },
     { header: 'Tip', key: 'type', width: 8 },
-    { header: 'Miktar', key: 'quantity', width: 10 },
+    { header: 'Adet', key: 'quantity', width: 10 },
+    { header: 'Set', key: 'setQuantity', width: 8 },
+    { header: 'Raf', key: 'shelf', width: 12 },
     { header: 'Yapan', key: 'handledBy', width: 20 },
     { header: 'Not', key: 'note', width: 25 },
   ];
@@ -84,7 +91,7 @@ export function StockMovementReport({ products, movements, filters }: StockMovem
   return (
     <div className="space-y-6">
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -92,8 +99,21 @@ export function StockMovementReport({ products, movements, filters }: StockMovem
                 <ArrowDownCircle className="w-5 h-5 text-success" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Toplam Giriş</p>
+                <p className="text-sm text-muted-foreground">Adet Giriş</p>
                 <p className="text-2xl font-bold text-success">{stats.totalIn}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-success/10">
+                <ArrowDownCircle className="w-5 h-5 text-success" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Set Giriş</p>
+                <p className="text-2xl font-bold text-success">{stats.totalSetIn}</p>
               </div>
             </div>
           </CardContent>
@@ -105,8 +125,21 @@ export function StockMovementReport({ products, movements, filters }: StockMovem
                 <ArrowUpCircle className="w-5 h-5 text-destructive" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Toplam Çıkış</p>
+                <p className="text-sm text-muted-foreground">Adet Çıkış</p>
                 <p className="text-2xl font-bold text-destructive">{stats.totalOut}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-destructive/10">
+                <ArrowUpCircle className="w-5 h-5 text-destructive" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Set Çıkış</p>
+                <p className="text-2xl font-bold text-destructive">{stats.totalSetOut}</p>
               </div>
             </div>
           </CardContent>
@@ -208,7 +241,9 @@ export function StockMovementReport({ products, movements, filters }: StockMovem
                   <TableHead>Tarih</TableHead>
                   <TableHead>Ürün</TableHead>
                   <TableHead>Tip</TableHead>
-                  <TableHead className="text-right">Miktar</TableHead>
+                  <TableHead className="text-right">Adet</TableHead>
+                  <TableHead className="text-right">Set</TableHead>
+                  <TableHead>Raf</TableHead>
                   <TableHead>Yapan</TableHead>
                 </TableRow>
               </TableHeader>
@@ -226,12 +261,14 @@ export function StockMovementReport({ products, movements, filters }: StockMovem
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right font-semibold">{m.quantity}</TableCell>
+                    <TableCell className="text-right font-semibold">{m.setQuantity || '-'}</TableCell>
+                    <TableCell className="text-muted-foreground">{m.shelfName || '-'}</TableCell>
                     <TableCell className="text-muted-foreground">{m.handledBy}</TableCell>
                   </TableRow>
                 ))}
                 {filteredMovements.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                       Seçilen filtrelere uygun hareket bulunamadı
                     </TableCell>
                   </TableRow>

@@ -397,6 +397,7 @@ export type Database = {
           notes: string | null
           product_id: string
           quantity: number
+          set_quantity: number
           shelf_id: string | null
         }
         Insert: {
@@ -413,6 +414,7 @@ export type Database = {
           notes?: string | null
           product_id: string
           quantity: number
+          set_quantity?: number
           shelf_id?: string | null
         }
         Update: {
@@ -429,6 +431,7 @@ export type Database = {
           notes?: string | null
           product_id?: string
           quantity?: number
+          set_quantity?: number
           shelf_id?: string | null
         }
         Relationships: [

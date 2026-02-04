@@ -66,13 +66,14 @@ export function MovementHistory({ movements, searchQuery }: MovementHistoryProps
 
   const handleExport = () => {
     const csvContent = [
-      ['Tarih', 'Saat', 'Ürün', 'İşlem', 'Miktar', 'Raf', 'Personel', 'Not'].join(','),
+      ['Tarih', 'Saat', 'Ürün', 'İşlem', 'Adet', 'Set', 'Raf', 'Personel', 'Not'].join(','),
       ...sortedMovements.map(m => [
         m.date,
         m.time || '-',
         `"${m.productName}"`,
         m.type === 'giris' ? 'Giriş' : 'Çıkış',
         m.quantity,
+        m.setQuantity || 0,
         `"${m.shelfName || '-'}"`,
         `"${m.handledBy}"`,
         `"${m.note || '-'}"`
@@ -181,7 +182,8 @@ export function MovementHistory({ movements, searchQuery }: MovementHistoryProps
             <TableRow>
               <TableHead>İşlem</TableHead>
               <TableHead>Ürün</TableHead>
-              <TableHead>Miktar</TableHead>
+              <TableHead>Adet</TableHead>
+              <TableHead>Set</TableHead>
               <TableHead>Raf</TableHead>
               <TableHead>Tarih & Saat</TableHead>
               <TableHead>Personel</TableHead>
@@ -227,6 +229,18 @@ export function MovementHistory({ movements, searchQuery }: MovementHistoryProps
                     movement.type === 'giris' ? 'text-success' : 'text-destructive'
                   )}>
                     {movement.type === 'giris' ? '+' : '-'}{movement.quantity}
+                  </span>
+                </TableCell>
+                <TableCell>
+                  <span className={cn(
+                    'font-bold',
+                    movement.type === 'giris' ? 'text-success' : 'text-destructive'
+                  )}>
+                    {(movement.setQuantity || 0) > 0 ? (
+                      <>{movement.type === 'giris' ? '+' : '-'}{movement.setQuantity}</>
+                    ) : (
+                      <span className="text-muted-foreground font-normal">-</span>
+                    )}
                   </span>
                 </TableCell>
                 <TableCell>

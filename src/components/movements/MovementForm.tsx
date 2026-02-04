@@ -27,6 +27,7 @@ interface MovementFormProps {
     productId: string;
     type: 'giris' | 'cikis';
     quantity: number;
+    setQuantity?: number;
     date: string;
     time: string;
     note?: string;
@@ -39,6 +40,7 @@ export function MovementForm({ products, onSubmit, onAddNewProduct }: MovementFo
   const [type, setType] = useState<'giris' | 'cikis'>('giris');
   const [productId, setProductId] = useState('');
   const [quantity, setQuantity] = useState(1);
+  const [setQty, setSetQty] = useState(0);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [time, setTime] = useState(new Date().toTimeString().slice(0, 5));
   const [note, setNote] = useState('');
@@ -116,6 +118,7 @@ export function MovementForm({ products, onSubmit, onAddNewProduct }: MovementFo
       productId,
       type,
       quantity,
+      setQuantity: setQty || 0,
       date,
       time,
       note: note || undefined,
@@ -125,6 +128,7 @@ export function MovementForm({ products, onSubmit, onAddNewProduct }: MovementFo
     // Reset form
     setProductId('');
     setQuantity(1);
+    setSetQty(0);
     setNote('');
     setSelectedShelfId(undefined);
     setAutoSubmitReady(false);
@@ -357,13 +361,23 @@ export function MovementForm({ products, onSubmit, onAddNewProduct }: MovementFo
                 )}
               </div>
               <div className="text-right">
-                <p className={cn(
-                  'text-lg font-bold',
-                  selectedProduct.mevcutStok <= selectedProduct.minStok ? 'text-destructive' : 'text-success'
-                )}>
-                  {selectedProduct.mevcutStok}
-                </p>
-                <p className="text-xs text-muted-foreground">mevcut</p>
+                <div className="flex gap-3">
+                  <div>
+                    <p className={cn(
+                      'text-lg font-bold',
+                      selectedProduct.mevcutStok <= selectedProduct.minStok ? 'text-destructive' : 'text-success'
+                    )}>
+                      {selectedProduct.mevcutStok}
+                    </p>
+                    <p className="text-xs text-muted-foreground">adet</p>
+                  </div>
+                  <div>
+                    <p className="text-lg font-bold text-foreground">
+                      {selectedProduct.setStok}
+                    </p>
+                    <p className="text-xs text-muted-foreground">set</p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -380,23 +394,40 @@ export function MovementForm({ products, onSubmit, onAddNewProduct }: MovementFo
         placeholder="Raf seçin..."
       />
 
-      {/* Quantity */}
-      <div className="space-y-2">
-        <Label htmlFor="quantity">Miktar *</Label>
-        <Input
-          id="quantity"
-          type="number"
-          min="1"
-          max={type === 'cikis' && selectedProduct ? selectedProduct.mevcutStok : undefined}
-          value={quantity}
-          onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
-          required
-        />
-        {type === 'cikis' && selectedProduct && (
-          <p className="text-xs text-muted-foreground">
-            Maksimum: {selectedProduct.mevcutStok}
-          </p>
-        )}
+      {/* Quantity Fields */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="quantity">Adet (Mevcut Stok) *</Label>
+          <Input
+            id="quantity"
+            type="number"
+            min="0"
+            max={type === 'cikis' && selectedProduct ? selectedProduct.mevcutStok : undefined}
+            value={quantity}
+            onChange={(e) => setQuantity(parseInt(e.target.value) || 0)}
+          />
+          {type === 'cikis' && selectedProduct && (
+            <p className="text-xs text-muted-foreground">
+              Maks: {selectedProduct.mevcutStok}
+            </p>
+          )}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="setQty">Set Adedi</Label>
+          <Input
+            id="setQty"
+            type="number"
+            min="0"
+            max={type === 'cikis' && selectedProduct ? selectedProduct.setStok : undefined}
+            value={setQty}
+            onChange={(e) => setSetQty(parseInt(e.target.value) || 0)}
+          />
+          {type === 'cikis' && selectedProduct && (
+            <p className="text-xs text-muted-foreground">
+              Maks: {selectedProduct.setStok}
+            </p>
+          )}
+        </div>
       </div>
 
       {/* Date & Time */}
@@ -461,7 +492,7 @@ export function MovementForm({ products, onSubmit, onAddNewProduct }: MovementFo
       {/* Submit Button */}
       <Button
         type="submit"
-        disabled={!productId || !currentUserName}
+        disabled={!productId || !currentUserName || (quantity === 0 && setQty === 0)}
         className={cn(
           'w-full border-0',
           type === 'giris' ? 'gradient-success' : 'bg-destructive hover:bg-destructive/90'
