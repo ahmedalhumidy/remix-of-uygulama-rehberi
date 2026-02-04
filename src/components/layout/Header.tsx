@@ -45,14 +45,14 @@ export function Header({
 
         {/* Search */}
         <div className="flex-1 max-w-md mx-2 md:mx-4">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+          <div className="relative flex items-center">
+            <Search className="absolute left-3 w-4 h-4 text-muted-foreground pointer-events-none z-10" />
             <Input
               type="text"
               placeholder="Ara..."
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
-              className="input-search h-9 md:h-10 text-sm w-full"
+              className="h-9 md:h-10 text-sm w-full pl-10 bg-secondary/50 border-transparent focus:border-primary focus:bg-card transition-all duration-200 rounded-lg"
             />
           </div>
         </div>
