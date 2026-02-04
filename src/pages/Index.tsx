@@ -64,6 +64,7 @@ const Index = () => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [stockActionModalOpen, setStockActionModalOpen] = useState(false);
   const [stockActionType, setStockActionType] = useState<"giris" | "cikis">("giris");
+  const [pendingBarcode, setPendingBarcode] = useState<string | undefined>();
 
   const lowStockCount = products.filter((p) => p.mevcutStok < p.minStok).length;
 
@@ -118,6 +119,7 @@ const Index = () => {
     date: string;
     time: string;
     note?: string;
+    shelfId?: string;
   }) => {
     await addMovement(data);
     refreshProducts();
@@ -138,11 +140,13 @@ const Index = () => {
 
   const handleScanBarcodeNotFound = (barcode: string) => {
     setSelectedProduct(null);
+    setPendingBarcode(barcode);
     setProductModalOpen(true);
   };
 
   const handleAddNewProductFromMovement = (barcode: string) => {
     setSelectedProduct(null);
+    setPendingBarcode(barcode);
     setProductModalOpen(true);
     toast.info("Yeni ürün ekleyin", {
       description: `Barkod: ${barcode} - Lütfen ürün bilgilerini doldurun`,
@@ -340,9 +344,11 @@ const Index = () => {
         onClose={() => {
           setProductModalOpen(false);
           setSelectedProduct(null);
+          setPendingBarcode(undefined);
         }}
         onSave={handleSaveProduct}
         product={selectedProduct}
+        initialBarcode={pendingBarcode}
       />
 
       <StockActionModal
