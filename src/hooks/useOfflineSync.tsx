@@ -40,11 +40,13 @@ export function useOfflineSync() {
           product_id: action.data.productId,
           movement_type: action.data.type,
           quantity: action.data.quantity,
+          set_quantity: action.data.setQuantity || 0,
           movement_date: action.data.date,
           movement_time: action.data.time,
           handled_by: profile.full_name,
           notes: action.data.note || null,
           created_by: userId,
+          shelf_id: action.data.shelfId || null,
         });
 
       if (error) throw error;

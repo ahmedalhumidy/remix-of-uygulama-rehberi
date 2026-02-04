@@ -21,6 +21,7 @@ export interface StockMovement {
   productName: string;
   type: 'giris' | 'cikis';
   quantity: number;
+  setQuantity?: number;
   date: string;
   time?: string;
   handledBy: string;

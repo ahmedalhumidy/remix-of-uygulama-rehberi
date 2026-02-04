@@ -1,53 +1,27 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { useState, useEffect, useCallback } from 'react';
 import { StockMovement, Product } from '@/types/stock';
-import { toast } from 'sonner';
-import { addToOfflineQueue, isOnline } from '@/lib/offlineSync';
+import { stockService, StockMovementInput } from '@/services/stockService';
 
 export function useMovements(products: Product[]) {
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchMovements = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('stock_movements')
-        .select('*, products(urun_adi), shelves(name)')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      const mappedMovements: StockMovement[] = (data || []).map(m => ({
-        id: m.id,
-        productId: m.product_id,
-        productName: (m.products as any)?.urun_adi || 'Bilinmeyen Ürün',
-        type: m.movement_type as 'giris' | 'cikis',
-        quantity: m.quantity,
-        date: m.movement_date,
-        time: m.movement_time?.slice(0, 5) || undefined,
-        handledBy: m.handled_by,
-        note: m.notes || undefined,
-        shelfId: m.shelf_id || undefined,
-        shelfName: (m.shelves as any)?.name || undefined,
-      }));
-
-      setMovements(mappedMovements);
-    } catch (error) {
-      console.error('Error fetching movements:', error);
-      toast.error('Hareketler yüklenirken hata oluştu');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const fetchMovements = useCallback(async () => {
+    setLoading(true);
+    const data = await stockService.fetchMovements();
+    setMovements(data);
+    setLoading(false);
+  }, []);
 
   useEffect(() => {
     fetchMovements();
-  }, []);
+  }, [fetchMovements]);
 
   const addMovement = async (data: {
     productId: string;
     type: 'giris' | 'cikis';
     quantity: number;
+    setQuantity?: number;
     date: string;
     time: string;
     note?: string;
@@ -55,101 +29,30 @@ export function useMovements(products: Product[]) {
   }) => {
     const product = products.find(p => p.id === data.productId);
     if (!product) {
-      toast.error('Ürün bulunamadı');
       return null;
     }
 
-    // Check if offline - queue the action
-    if (!isOnline()) {
-      addToOfflineQueue({
-        type: 'stock_movement',
-        data: {
-          productId: data.productId,
-          type: data.type,
-          quantity: data.quantity,
-          date: data.date,
-          time: data.time,
-          note: data.note,
-        },
-      });
-      
-      toast.info('Çevrimdışı - işlem sıraya eklendi', {
-        description: 'İnternet bağlantısı sağlandığında otomatik senkronize edilecek',
-      });
-      return null;
+    const input: StockMovementInput = {
+      productId: data.productId,
+      type: data.type,
+      quantity: data.quantity,
+      setQuantity: data.setQuantity || 0,
+      date: data.date,
+      time: data.time,
+      note: data.note,
+      shelfId: data.shelfId,
+    };
+
+    const result = await stockService.createMovement(input);
+
+    if (result) {
+      setMovements(prev => [result, ...prev]);
     }
 
-    try {
-      const { data: session } = await supabase.auth.getSession();
-      const userId = session.session?.user.id;
-      
-      if (!userId) {
-        toast.error('Oturum bulunamadı. Lütfen tekrar giriş yapın.');
-        return null;
-      }
-
-      // Fetch the user's profile name server-side to prevent impersonation
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('full_name')
-        .eq('user_id', userId)
-        .single();
-
-      if (profileError || !profile) {
-        toast.error('Kullanıcı profili bulunamadı');
-        return null;
-      }
-
-      const { data: newMovement, error } = await supabase
-        .from('stock_movements')
-        .insert({
-          product_id: data.productId,
-          movement_type: data.type,
-          quantity: data.quantity,
-          movement_date: data.date,
-          movement_time: data.time,
-          handled_by: profile.full_name,
-          notes: data.note || null,
-          created_by: userId,
-          shelf_id: data.shelfId || null,
-        })
-        .select('*, shelves(name)')
-        .single();
-
-      if (error) throw error;
-
-      const mappedMovement: StockMovement = {
-        id: newMovement.id,
-        productId: newMovement.product_id,
-        productName: product.urunAdi,
-        type: newMovement.movement_type as 'giris' | 'cikis',
-        quantity: newMovement.quantity,
-        date: newMovement.movement_date,
-        time: newMovement.movement_time?.slice(0, 5) || undefined,
-        handledBy: newMovement.handled_by,
-        note: newMovement.notes || undefined,
-        shelfId: newMovement.shelf_id || undefined,
-        shelfName: (newMovement.shelves as any)?.name || undefined,
-      };
-
-      setMovements(prev => [mappedMovement, ...prev]);
-      
-      toast.success(
-        data.type === 'giris' 
-          ? `${data.quantity} adet stok girişi yapıldı` 
-          : `${data.quantity} adet stok çıkışı yapıldı`
-      );
-
-      return mappedMovement;
-    } catch (error) {
-      console.error('Error adding movement:', error);
-      toast.error('Hareket eklenirken hata oluştu');
-      return null;
-    }
+    return result;
   };
 
   const refreshMovements = () => {
-    setLoading(true);
     fetchMovements();
   };
 
