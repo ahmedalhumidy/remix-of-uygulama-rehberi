@@ -4,6 +4,7 @@ import { ModuleKey, MODULE_METADATA } from '@/modules/types';
 import { ModuleCard } from './ModuleCard';
 import { MigrationSafetyReport } from './MigrationSafetyReport';
 import { RollbackPanel } from './RollbackPanel';
+import { FieldDefinitionManager } from '@/modules/dynamic-forms/components/FieldDefinitionManager';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -76,8 +77,9 @@ export function ControlCenterPage() {
       </div>
 
       <Tabs defaultValue="modules" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="modules">Modüller</TabsTrigger>
+          <TabsTrigger value="custom-fields">Özel Alanlar</TabsTrigger>
           <TabsTrigger value="safety">Güvenlik Raporu</TabsTrigger>
           <TabsTrigger value="rollback">Geri Alma</TabsTrigger>
         </TabsList>
@@ -94,6 +96,10 @@ export function ControlCenterPage() {
               />
             ))}
           </div>
+        </TabsContent>
+
+        <TabsContent value="custom-fields" className="mt-6">
+          <FieldDefinitionManager />
         </TabsContent>
 
         <TabsContent value="safety" className="mt-6">

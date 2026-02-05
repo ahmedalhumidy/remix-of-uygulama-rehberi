@@ -132,6 +132,92 @@ export type Database = {
           },
         ]
       }
+      custom_field_definitions: {
+        Row: {
+          created_at: string
+          default_value: string | null
+          display_order: number
+          entity_type: string
+          field_key: string
+          field_label: string
+          field_type: string
+          id: string
+          is_active: boolean
+          is_required: boolean
+          options: Json | null
+          placeholder: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          default_value?: string | null
+          display_order?: number
+          entity_type?: string
+          field_key: string
+          field_label: string
+          field_type?: string
+          id?: string
+          is_active?: boolean
+          is_required?: boolean
+          options?: Json | null
+          placeholder?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          default_value?: string | null
+          display_order?: number
+          entity_type?: string
+          field_key?: string
+          field_label?: string
+          field_type?: string
+          id?: string
+          is_active?: boolean
+          is_required?: boolean
+          options?: Json | null
+          placeholder?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      custom_field_values: {
+        Row: {
+          created_at: string
+          entity_id: string
+          entity_type: string
+          field_definition_id: string
+          id: string
+          updated_at: string
+          value: Json | null
+        }
+        Insert: {
+          created_at?: string
+          entity_id: string
+          entity_type?: string
+          field_definition_id: string
+          id?: string
+          updated_at?: string
+          value?: Json | null
+        }
+        Update: {
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+          field_definition_id?: string
+          id?: string
+          updated_at?: string
+          value?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custom_field_values_field_definition_id_fkey"
+            columns: ["field_definition_id"]
+            isOneToOne: false
+            referencedRelation: "custom_field_definitions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feature_flags: {
         Row: {
           config: Json
