@@ -9,7 +9,8 @@ import {
   ScrollText,
   BarChart3,
   Settings,
-  Archive
+  Archive,
+  Settings2
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { ViewMode } from '@/types/stock';
@@ -42,6 +43,7 @@ const menuItems: MenuItem[] = [
   { id: 'users', path: '/users', icon: Users, label: 'Kullanıcılar', requiredPermission: 'users.view' },
   { id: 'logs', path: '/logs', icon: ScrollText, label: 'Denetim Günlüğü', requiredPermission: 'logs.view' },
   { id: 'settings', path: '/settings', icon: Settings, label: 'Sistem Ayarları', requiredPermission: 'settings.view' },
+  { id: 'control-center', path: '/control-center', icon: Settings2, label: 'Kontrol Merkezi', requiredPermission: 'settings.view' },
   { id: 'profile', path: '/profile', icon: UserCog, label: 'Profil Ayarları' },
 ];
 

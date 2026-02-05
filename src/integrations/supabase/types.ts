@@ -132,6 +132,39 @@ export type Database = {
           },
         ]
       }
+      feature_flags: {
+        Row: {
+          config: Json
+          created_at: string
+          description: string | null
+          id: string
+          is_enabled: boolean
+          module_key: string
+          module_name: string
+          updated_at: string
+        }
+        Insert: {
+          config?: Json
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_enabled?: boolean
+          module_key: string
+          module_name: string
+          updated_at?: string
+        }
+        Update: {
+          config?: Json
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_enabled?: boolean
+          module_key?: string
+          module_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       login_attempts: {
         Row: {
           created_at: string
