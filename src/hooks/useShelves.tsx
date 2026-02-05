@@ -37,54 +37,54 @@ export function useShelves() {
 
   const addShelf = async (name: string, description?: string): Promise<Shelf | null> => {
     try {
-      // Check if shelf already exists locally
-      const existingShelf = shelves.find(s => s.name.toLowerCase() === name.toLowerCase());
+      const trimmedName = name.trim();
+      
+      // Check if shelf already exists locally (exact match)
+      const existingShelf = shelves.find(s => s.name === trimmedName);
       if (existingShelf) {
-        toast.info('Bu raf zaten mevcut');
+        toast.info(`"${trimmedName}" rafı zaten listede mevcut`);
         return existingShelf;
       }
 
-      // Check if exists in database (in case local state is stale)
-      const { data: existingInDb } = await supabase
-        .from('shelves')
-        .select('*')
-        .ilike('name', name)
-        .maybeSingle();
-
-      if (existingInDb) {
-        // Update local state and return existing
-        setShelves(prev => {
-          const exists = prev.some(s => s.id === existingInDb.id);
-          if (!exists) {
-            return [...prev, existingInDb].sort((a, b) => a.name.localeCompare(b.name));
-          }
-          return prev;
-        });
-        toast.info('Bu raf zaten mevcut');
-        return existingInDb;
-      }
-
+      // Try to insert - let database handle uniqueness
       const { data, error } = await supabase
         .from('shelves')
-        .insert({ name, description })
+        .insert({ name: trimmedName, description })
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        // Handle duplicate key error (shelf exists in DB but not in local state)
+        if (error.code === '23505') {
+          // Fetch the existing shelf from database
+          const { data: existingInDb } = await supabase
+            .from('shelves')
+            .select('*')
+            .eq('name', trimmedName)
+            .maybeSingle();
 
-      // Immediately update local state
+          if (existingInDb) {
+            // Add to local state if not already there
+            setShelves(prev => {
+              const exists = prev.some(s => s.id === existingInDb.id);
+              if (!exists) {
+                return [...prev, existingInDb].sort((a, b) => a.name.localeCompare(b.name));
+              }
+              return prev;
+            });
+            toast.info(`"${trimmedName}" rafı veritabanında zaten mevcut, listeye eklendi`);
+            return existingInDb;
+          }
+        }
+        throw error;
+      }
+
+      // Successfully inserted - update local state
       setShelves(prev => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
-      toast.success('Yeni raf eklendi');
+      toast.success(`"${trimmedName}" rafı eklendi`);
       return data;
     } catch (error: any) {
       console.error('Error adding shelf:', error);
-      // Handle duplicate key error
-      if (error?.code === '23505') {
-        toast.info('Bu raf zaten mevcut');
-        // Refresh to get the existing shelf
-        await fetchShelves();
-        return shelves.find(s => s.name.toLowerCase() === name.toLowerCase()) || null;
-      }
       toast.error('Raf eklenirken hata oluştu');
       return null;
     }
