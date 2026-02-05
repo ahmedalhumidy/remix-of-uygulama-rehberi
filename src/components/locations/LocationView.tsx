@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MapPin, Package, AlertTriangle, Plus, Trash2, Edit2 } from 'lucide-react';
+import { MapPin, Package, AlertTriangle, Plus, Trash2, Edit2, RefreshCw } from 'lucide-react';
 import { Product } from '@/types/stock';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -24,6 +24,8 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useShelves } from '@/hooks/useShelves';
 import { usePermissions } from '@/hooks/usePermissions';
+import { LocationCard } from './LocationCard';
+import { ShelfDialogs } from './ShelfDialogs';
 
 interface LocationViewProps {
   products: Product[];
@@ -32,7 +34,7 @@ interface LocationViewProps {
 }
 
 export function LocationView({ products, searchQuery, onViewProduct }: LocationViewProps) {
-  const { shelves, addShelf, updateShelf, deleteShelf, loading } = useShelves();
+  const { shelves, addShelf, updateShelf, deleteShelf, loading, refreshShelves } = useShelves();
   const { hasPermission } = usePermissions();
   const canManageShelves = hasPermission('products.create');
   
@@ -43,6 +45,7 @@ export function LocationView({ products, searchQuery, onViewProduct }: LocationV
   const [editingShelf, setEditingShelf] = useState<{ id: string; name: string } | null>(null);
   const [deletingShelfId, setDeletingShelfId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Group products by location
   const locationGroups = products.reduce((groups, product) => {
@@ -54,13 +57,23 @@ export function LocationView({ products, searchQuery, onViewProduct }: LocationV
     return groups;
   }, {} as Record<string, Product[]>);
 
+  // Merge shelves from DB with product locations to show ALL shelves
+  const allLocations = new Set<string>();
+  
+  // Add all shelves from DB
+  shelves.forEach(s => allLocations.add(s.name));
+  
+  // Add all product locations (in case some aren't in shelves table)
+  Object.keys(locationGroups).forEach(loc => allLocations.add(loc));
+
   // Filter locations based on search
-  const filteredLocations = Object.keys(locationGroups)
+  const filteredLocations = Array.from(allLocations)
     .filter(location => {
       const query = searchQuery.toLowerCase();
+      const locationProducts = locationGroups[location] || [];
       return (
         location.toLowerCase().includes(query) ||
-        locationGroups[location].some(p => 
+        locationProducts.some(p => 
           p.urunAdi.toLowerCase().includes(query) ||
           p.urunKodu.toLowerCase().includes(query)
         )
@@ -105,111 +118,53 @@ export function LocationView({ products, searchQuery, onViewProduct }: LocationV
     setShowDeleteDialog(true);
   };
 
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    refreshShelves();
+    // Small delay to show spinner
+    setTimeout(() => setIsRefreshing(false), 800);
+  };
+
   return (
     <div className="space-y-6 animate-slide-up">
-      {/* Header with Add Button */}
-      {canManageShelves && (
-        <div className="flex justify-end">
+      {/* Header with Refresh + Add Button */}
+      <div className="flex items-center justify-between">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleRefresh}
+          disabled={isRefreshing || loading}
+          className="gap-2"
+        >
+          <RefreshCw className={cn("w-4 h-4", (isRefreshing || loading) && "animate-spin")} />
+          Yenile
+        </Button>
+        {canManageShelves && (
           <Button onClick={() => setShowAddDialog(true)} className="gap-2">
             <Plus className="w-4 h-4" />
             Yeni Raf Ekle
           </Button>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Location Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredLocations.map((location, index) => {
-          const locationProducts = locationGroups[location];
-          const totalStock = locationProducts.reduce((sum, p) => sum + p.mevcutStok, 0);
-          const totalSetStock = locationProducts.reduce((sum, p) => sum + p.setStok, 0);
-          const lowStockCount = locationProducts.filter(p => p.mevcutStok < p.minStok).length;
+          const locationProducts = locationGroups[location] || [];
           const shelf = shelves.find(s => s.name === location);
 
           return (
-            <div 
-              key={location} 
-              className="stat-card animate-fade-in"
-              style={{ animationDelay: `${index * 30}ms` }}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-primary/10">
-                    <MapPin className="w-5 h-5 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-foreground">{location}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {locationProducts.length} ürün
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {lowStockCount > 0 && (
-                    <span className="badge-status bg-destructive/10 text-destructive">
-                      <AlertTriangle className="w-3 h-3 mr-1" />
-                      {lowStockCount}
-                    </span>
-                  )}
-                  {canManageShelves && shelf && (
-                    <div className="flex gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={() => openEditDialog(shelf.id, shelf.name)}
-                      >
-                        <Edit2 className="w-3.5 h-3.5" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-destructive hover:text-destructive"
-                        onClick={() => openDeleteDialog(shelf.id)}
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="space-y-2 max-h-48 overflow-y-auto">
-                {locationProducts.map((product) => {
-                  const isLowStock = product.mevcutStok < product.minStok;
-                  return (
-                    <button
-                      key={product.id}
-                      onClick={() => onViewProduct(product.id)}
-                      className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors text-left"
-                    >
-                      <div className="flex items-center gap-2 min-w-0">
-                        <Package className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                        <span className="text-sm truncate">{product.urunAdi}</span>
-                      </div>
-                      <span className={cn(
-                        'text-sm font-medium ml-2 flex-shrink-0',
-                        isLowStock ? 'text-destructive' : 'text-foreground'
-                      )}>
-                        {product.mevcutStok}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="mt-4 pt-3 border-t border-border">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Toplam</span>
-                  <div className="text-right">
-                    <span className="font-semibold text-foreground">{totalStock} adet</span>
-                    {totalSetStock > 0 && (
-                      <span className="text-sm text-muted-foreground ml-2">+ {totalSetStock} set</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
+            <LocationCard
+              key={location}
+              location={location}
+              products={locationProducts}
+              shelf={shelf}
+              index={index}
+              canManageShelves={canManageShelves}
+              onViewProduct={onViewProduct}
+              onEditShelf={openEditDialog}
+              onDeleteShelf={openDeleteDialog}
+            />
           );
         })}
 
@@ -228,108 +183,25 @@ export function LocationView({ products, searchQuery, onViewProduct }: LocationV
         )}
       </div>
 
-      {/* Add Shelf Dialog */}
-      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent className="sm:max-w-[400px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <MapPin className="w-5 h-5 text-primary" />
-              Yeni Raf Ekle
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="newShelfName">Raf Adı *</Label>
-              <Input
-                id="newShelfName"
-                value={newShelfName}
-                onChange={(e) => setNewShelfName(e.target.value)}
-                placeholder="Örn: A-1, B-2(1), D-8(3)"
-                autoFocus
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setNewShelfName('');
-                setShowAddDialog(false);
-              }}
-            >
-              İptal
-            </Button>
-            <Button
-              onClick={handleAddShelf}
-              disabled={!newShelfName.trim() || isSubmitting}
-            >
-              {isSubmitting ? 'Ekleniyor...' : 'Ekle'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Shelf Dialog */}
-      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="sm:max-w-[400px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Edit2 className="w-5 h-5 text-primary" />
-              Raf Düzenle
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="editShelfName">Raf Adı *</Label>
-              <Input
-                id="editShelfName"
-                value={editingShelf?.name || ''}
-                onChange={(e) => setEditingShelf(prev => prev ? { ...prev, name: e.target.value } : null)}
-                placeholder="Raf adını girin"
-                autoFocus
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setEditingShelf(null);
-                setShowEditDialog(false);
-              }}
-            >
-              İptal
-            </Button>
-            <Button
-              onClick={handleEditShelf}
-              disabled={!editingShelf?.name.trim() || isSubmitting}
-            >
-              {isSubmitting ? 'Güncelleniyor...' : 'Güncelle'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Rafı silmek istediğinize emin misiniz?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Bu işlem geri alınamaz. Raf silinecek ancak ürünler etkilenmeyecektir.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setDeletingShelfId(null)}>İptal</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteShelf}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {isSubmitting ? 'Siliniyor...' : 'Sil'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Dialogs */}
+      <ShelfDialogs
+        showAddDialog={showAddDialog}
+        setShowAddDialog={setShowAddDialog}
+        showEditDialog={showEditDialog}
+        setShowEditDialog={setShowEditDialog}
+        showDeleteDialog={showDeleteDialog}
+        setShowDeleteDialog={setShowDeleteDialog}
+        newShelfName={newShelfName}
+        setNewShelfName={setNewShelfName}
+        editingShelf={editingShelf}
+        setEditingShelf={(v) => setEditingShelf(v)}
+        deletingShelfId={deletingShelfId}
+        setDeletingShelfId={setDeletingShelfId}
+        isSubmitting={isSubmitting}
+        onAddShelf={handleAddShelf}
+        onEditShelf={handleEditShelf}
+        onDeleteShelf={handleDeleteShelf}
+      />
     </div>
   );
 }
