@@ -1,5 +1,41 @@
 
 # خطة تحويل GLORE إلى منصة Marketplace احترافية
+ 
+ ## ✅ الإنجازات المكتملة
+ 
+ ### المرحلة 1: البنية التحتية (مكتمل ✅)
+ - ✅ إضافة أدوار merchant و customer للـ enum
+ - ✅ إنشاء جدول stores
+ - ✅ إنشاء جدول addresses  
+ - ✅ إنشاء جدول orders
+ - ✅ إنشاء جدول order_items
+ - ✅ إنشاء جدول shipping_carriers (مع بيانات شركات الشحن التركية)
+ - ✅ إنشاء جدول shipping_zones
+ - ✅ إنشاء جدول cart_items
+ - ✅ إنشاء جدول wishlist
+ - ✅ إنشاء جدول payments
+ - ✅ إنشاء جدول reviews
+ - ✅ تحديث جدول products بأعمدة: store_id, price, sale_price, is_published, images, category, weight
+ - ✅ تحديث جدول profiles بأعمدة: phone, user_type
+ - ✅ إعداد سياسات RLS لجميع الجداول
+ - ✅ إنشاء Triggers للتحديث التلقائي
+ - ✅ إنشاء Function لتوليد أرقام الطلبات
+ 
+ ### المرحلة 2: واجهة الزبون (مكتمل ✅)
+ - ✅ StoreHeader - Header للمتجر مع البحث والسلة
+ - ✅ ProductCard - بطاقة عرض المنتج
+ - ✅ CartDrawer - درج سلة التسوق
+ - ✅ StoreFront - الصفحة الرئيسية للمتجر
+ - ✅ StoreProducts - صفحة قائمة المنتجات مع الفلاتر
+ - ✅ CartContext - إدارة حالة السلة
+ - ✅ useMarketplace hook - عمليات المتجر
+ 
+ ### المرحلة 3: لوحة التاجر (مكتمل ✅)
+ - ✅ MerchantDashboard - لوحة تحكم التاجر
+ - ✅ MerchantProducts - إدارة منتجات التاجر
+ - ✅ CreateStore - إنشاء مغازة جديدة
+ 
+ ---
 
 ## ملخص المشروع
 تحويل نظام إدارة المخزون الحالي (GLORE) إلى **منصة تجارة إلكترونية متكاملة** تدعم:
