@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Product } from '@/types/stock';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,8 @@ import {
 import { ShelfSelector } from '@/components/shelves/ShelfSelector';
 import { useShelves, Shelf } from '@/hooks/useShelves';
 import { QuickStockInput } from '@/components/stock/QuickStockInput';
+import { CustomFieldsSection } from '@/modules/dynamic-forms/components/CustomFieldsSection';
+import type { CustomFieldValuesMap } from '@/modules/dynamic-forms/types';
 interface ProductModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -25,6 +27,10 @@ interface ProductModalProps {
 export function ProductModal({ isOpen, onClose, onSave, product, initialBarcode, onStockUpdated }: ProductModalProps) {
   const { shelves, addShelf } = useShelves();
   const [selectedShelfId, setSelectedShelfId] = useState<string | undefined>();
+  const customFieldsRef = useRef<{
+    values: CustomFieldValuesMap;
+    save: (entityId: string) => Promise<boolean>;
+  } | null>(null);
   
   const [formData, setFormData] = useState({
     urunKodu: '',
@@ -72,7 +78,7 @@ export function ProductModal({ isOpen, onClose, onSave, product, initialBarcode,
     setFormData({ ...formData, rafKonum: shelf.name });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     const productData = {
@@ -84,10 +90,17 @@ export function ProductModal({ isOpen, onClose, onSave, product, initialBarcode,
       sonIslemTarihi: new Date().toISOString().split('T')[0],
     };
 
+    let savedProduct;
     if (product) {
-      onSave({ ...productData, id: product.id });
+      savedProduct = { ...productData, id: product.id };
+      onSave(savedProduct);
     } else {
-      onSave(productData);
+      savedProduct = onSave(productData);
+    }
+
+    // Save custom field values if module is active
+    if (customFieldsRef.current && product?.id) {
+      await customFieldsRef.current.save(product.id);
     }
     
     onClose();
@@ -214,6 +227,13 @@ export function ProductModal({ isOpen, onClose, onSave, product, initialBarcode,
               </div>
             </div>
           )}
+
+          {/* Dynamic Custom Fields — only shows when module enabled and fields exist */}
+          <CustomFieldsSection
+            entityId={product?.id || null}
+            entityType="product"
+            valuesRef={customFieldsRef}
+          />
 
           <div className="space-y-2">
             <Label htmlFor="not">Not</Label>
