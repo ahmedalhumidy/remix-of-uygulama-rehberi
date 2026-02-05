@@ -97,6 +97,86 @@ export type Database = {
           },
         ]
       }
+      automation_log: {
+        Row: {
+          error_message: string | null
+          executed_at: string
+          id: string
+          result: string
+          rule_id: string
+          trigger_data: Json | null
+        }
+        Insert: {
+          error_message?: string | null
+          executed_at?: string
+          id?: string
+          result?: string
+          rule_id: string
+          trigger_data?: Json | null
+        }
+        Update: {
+          error_message?: string | null
+          executed_at?: string
+          id?: string
+          result?: string
+          rule_id?: string
+          trigger_data?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_log_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "automation_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      automation_rules: {
+        Row: {
+          action_config: Json
+          action_type: string
+          condition_config: Json
+          created_at: string
+          description: string | null
+          execution_count: number
+          id: string
+          is_active: boolean
+          last_executed_at: string | null
+          name: string
+          trigger_type: string
+          updated_at: string
+        }
+        Insert: {
+          action_config?: Json
+          action_type: string
+          condition_config?: Json
+          created_at?: string
+          description?: string | null
+          execution_count?: number
+          id?: string
+          is_active?: boolean
+          last_executed_at?: string | null
+          name: string
+          trigger_type: string
+          updated_at?: string
+        }
+        Update: {
+          action_config?: Json
+          action_type?: string
+          condition_config?: Json
+          created_at?: string
+          description?: string | null
+          execution_count?: number
+          id?: string
+          is_active?: boolean
+          last_executed_at?: string | null
+          name?: string
+          trigger_type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       cart_items: {
         Row: {
           created_at: string | null
@@ -1179,6 +1259,238 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_definitions: {
+        Row: {
+          created_at: string
+          description: string | null
+          entity_type: string
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          entity_type?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          entity_type?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      workflow_instance_history: {
+        Row: {
+          action: string
+          created_at: string
+          from_step_id: string | null
+          id: string
+          instance_id: string
+          note: string | null
+          performed_by: string | null
+          to_step_id: string
+        }
+        Insert: {
+          action?: string
+          created_at?: string
+          from_step_id?: string | null
+          id?: string
+          instance_id: string
+          note?: string | null
+          performed_by?: string | null
+          to_step_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          from_step_id?: string | null
+          id?: string
+          instance_id?: string
+          note?: string | null
+          performed_by?: string | null
+          to_step_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_instance_history_from_step_id_fkey"
+            columns: ["from_step_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_steps"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_instance_history_instance_id_fkey"
+            columns: ["instance_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_instances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_instance_history_to_step_id_fkey"
+            columns: ["to_step_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_steps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_instances: {
+        Row: {
+          created_at: string
+          current_step_id: string
+          entity_id: string
+          entity_type: string
+          id: string
+          started_by: string | null
+          status: string
+          updated_at: string
+          workflow_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_step_id: string
+          entity_id: string
+          entity_type: string
+          id?: string
+          started_by?: string | null
+          status?: string
+          updated_at?: string
+          workflow_id: string
+        }
+        Update: {
+          created_at?: string
+          current_step_id?: string
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          started_by?: string | null
+          status?: string
+          updated_at?: string
+          workflow_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_instances_current_step_id_fkey"
+            columns: ["current_step_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_steps"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_instances_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_definitions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_steps: {
+        Row: {
+          approval_role: string | null
+          color: string | null
+          created_at: string
+          id: string
+          is_final: boolean
+          is_initial: boolean
+          name: string
+          requires_approval: boolean
+          step_order: number
+          workflow_id: string
+        }
+        Insert: {
+          approval_role?: string | null
+          color?: string | null
+          created_at?: string
+          id?: string
+          is_final?: boolean
+          is_initial?: boolean
+          name: string
+          requires_approval?: boolean
+          step_order?: number
+          workflow_id: string
+        }
+        Update: {
+          approval_role?: string | null
+          color?: string | null
+          created_at?: string
+          id?: string
+          is_final?: boolean
+          is_initial?: boolean
+          name?: string
+          requires_approval?: boolean
+          step_order?: number
+          workflow_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_steps_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_definitions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_transitions: {
+        Row: {
+          condition_label: string | null
+          created_at: string
+          from_step_id: string
+          id: string
+          to_step_id: string
+          workflow_id: string
+        }
+        Insert: {
+          condition_label?: string | null
+          created_at?: string
+          from_step_id: string
+          id?: string
+          to_step_id: string
+          workflow_id: string
+        }
+        Update: {
+          condition_label?: string | null
+          created_at?: string
+          from_step_id?: string
+          id?: string
+          to_step_id?: string
+          workflow_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_transitions_from_step_id_fkey"
+            columns: ["from_step_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_steps"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_transitions_to_step_id_fkey"
+            columns: ["to_step_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_steps"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_transitions_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_definitions"
             referencedColumns: ["id"]
           },
         ]

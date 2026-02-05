@@ -5,7 +5,9 @@ import { ModuleCard } from './ModuleCard';
 import { MigrationSafetyReport } from './MigrationSafetyReport';
 import { RollbackPanel } from './RollbackPanel';
 import { FieldDefinitionManager } from '@/modules/dynamic-forms/components/FieldDefinitionManager';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { WorkflowManager } from '@/modules/workflows/components/WorkflowManager';
+import { AutomationManager } from '@/modules/automation/components/AutomationManager';
+import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -77,10 +79,12 @@ export function ControlCenterPage() {
       </div>
 
       <Tabs defaultValue="modules" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="modules">Modüller</TabsTrigger>
           <TabsTrigger value="custom-fields">Özel Alanlar</TabsTrigger>
-          <TabsTrigger value="safety">Güvenlik Raporu</TabsTrigger>
+          <TabsTrigger value="workflows">İş Akışları</TabsTrigger>
+          <TabsTrigger value="automation">Otomasyon</TabsTrigger>
+          <TabsTrigger value="safety">Güvenlik</TabsTrigger>
           <TabsTrigger value="rollback">Geri Alma</TabsTrigger>
         </TabsList>
 
@@ -100,6 +104,14 @@ export function ControlCenterPage() {
 
         <TabsContent value="custom-fields" className="mt-6">
           <FieldDefinitionManager />
+        </TabsContent>
+
+        <TabsContent value="workflows" className="mt-6">
+          <WorkflowManager />
+        </TabsContent>
+
+        <TabsContent value="automation" className="mt-6">
+          <AutomationManager />
         </TabsContent>
 
         <TabsContent value="safety" className="mt-6">
