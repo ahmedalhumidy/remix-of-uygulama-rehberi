@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { PermissionsProvider } from "@/hooks/usePermissions";
+import { FeatureFlagsProvider } from "@/hooks/useFeatureFlags";
 import { SystemSettingsProvider } from "@/hooks/useSystemSettings";
 import { PWAUpdateNotification } from "@/components/pwa/PWAUpdateNotification";
 import { OfflineIndicator } from "@/components/pwa/OfflineIndicator";
@@ -130,6 +131,11 @@ const AppRoutes = () => (
           <Index />
         </ProtectedRoute>
       } />
+      <Route path="/control-center" element={
+        <ProtectedRoute>
+          <Index />
+        </ProtectedRoute>
+      } />
        {/* Store Routes - Public */}
        <Route path="/store" element={<StoreFront />} />
        <Route path="/store/products" element={<StoreProducts />} />
@@ -162,15 +168,17 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <PermissionsProvider>
-            <SystemSettingsProvider>
-               <CartProvider>
-                 <AppRoutes />
-                 <PWAUpdateNotification />
-                 <OfflineIndicator />
-               </CartProvider>
-            </SystemSettingsProvider>
-          </PermissionsProvider>
+           <PermissionsProvider>
+            <FeatureFlagsProvider>
+              <SystemSettingsProvider>
+                 <CartProvider>
+                   <AppRoutes />
+                   <PWAUpdateNotification />
+                   <OfflineIndicator />
+                 </CartProvider>
+              </SystemSettingsProvider>
+            </FeatureFlagsProvider>
+           </PermissionsProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

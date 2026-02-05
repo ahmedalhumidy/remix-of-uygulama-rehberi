@@ -33,6 +33,9 @@ const SystemSettingsPage = lazy(() =>
 const ArchiveManagement = lazy(() =>
   import("@/components/archive/ArchiveManagement").then((m) => ({ default: m.ArchiveManagement })),
 );
+const ControlCenterPage = lazy(() =>
+  import("@/modules/control-center/ControlCenterPage").then((m) => ({ default: m.ControlCenterPage })),
+);
 
 // Loading component for lazy loaded pages
 function LazyPageLoader() {
@@ -173,6 +176,7 @@ const Index = () => {
     profile: "Profil Ayarları",
     settings: "Sistem Ayarları",
     archive: "Arşiv Yönetimi",
+    'control-center': "Kontrol Merkezi",
   };
 
   const isLoading = productsLoading || movementsLoading;
@@ -337,6 +341,12 @@ const Index = () => {
           {currentView === "archive" && (
             <Suspense fallback={<LazyPageLoader />}>
               <ArchiveManagement />
+            </Suspense>
+          )}
+
+          {currentView === "control-center" && (
+            <Suspense fallback={<LazyPageLoader />}>
+              <ControlCenterPage />
             </Suspense>
           )}
         </main>

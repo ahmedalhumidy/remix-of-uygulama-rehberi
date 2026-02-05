@@ -39,7 +39,7 @@ export interface DashboardStats {
   totalOut: number;
 }
 
-export type ViewMode = 'dashboard' | 'products' | 'movements' | 'locations' | 'alerts' | 'users' | 'logs' | 'reports' | 'profile' | 'settings' | 'archive';
+export type ViewMode = 'dashboard' | 'products' | 'movements' | 'locations' | 'alerts' | 'users' | 'logs' | 'reports' | 'profile' | 'settings' | 'archive' | 'control-center';
 
 export type AppRole = 'admin' | 'manager' | 'staff' | 'viewer';
 
