@@ -98,10 +98,15 @@ export function ShelfSelector({
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-          <Command>
+        <PopoverContent 
+          className="w-[var(--radix-popover-trigger-width)] p-0 z-50" 
+          align="start"
+          sideOffset={4}
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
+          <Command shouldFilter={true}>
             <CommandInput placeholder="Raf ara..." />
-            <CommandList>
+            <CommandList className="max-h-[200px] overflow-y-auto overscroll-contain">
               <CommandEmpty>
                 <div className="py-2 text-center">
                   <p className="text-sm text-muted-foreground mb-2">Raf bulunamadı</p>
@@ -127,6 +132,7 @@ export function ShelfSelector({
                       onSelect(shelf);
                       setOpen(false);
                     }}
+                    className="cursor-pointer"
                   >
                     <Check
                       className={cn(
@@ -146,7 +152,7 @@ export function ShelfSelector({
                     setShowAddDialog(true);
                     setOpen(false);
                   }}
-                  className="text-primary"
+                  className="text-primary cursor-pointer"
                 >
                   <Plus className="mr-2 h-4 w-4" />
                   Yeni Raf Ekle
