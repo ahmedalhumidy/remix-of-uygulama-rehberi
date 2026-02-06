@@ -26,7 +26,7 @@ interface BatchScanItemCardProps {
   onToggleExpand: () => void;
   onUpdateItem: (id: string, updates: Partial<BatchScanItem>) => void;
   onRemoveItem: (id: string) => void;
-  onAddNewProduct?: (barcode: string) => void;
+  onQuickAdd?: (barcode: string) => void;
 }
 
 export function BatchScanItemCard({
@@ -35,7 +35,7 @@ export function BatchScanItemCard({
   onToggleExpand,
   onUpdateItem,
   onRemoveItem,
-  onAddNewProduct,
+  onQuickAdd,
 }: BatchScanItemCardProps) {
   const isFound = !!item.product;
   const isProcessed = item.status === 'success' || item.status === 'error';
@@ -173,10 +173,7 @@ export function BatchScanItemCard({
               size="sm"
               variant="outline"
               className="h-8 text-xs gap-1"
-              onClick={() => {
-                onRemoveItem(item.id);
-                onAddNewProduct?.(item.barcode);
-              }}
+              onClick={() => onQuickAdd?.(item.barcode)}
             >
               <Plus className="w-3 h-3" />
               Ekle

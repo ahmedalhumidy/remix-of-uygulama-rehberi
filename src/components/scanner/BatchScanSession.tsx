@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { BatchScanItem, BatchScanItemCard } from './BatchScanItemCard';
 import { BatchScanSummary } from './BatchScanSummary';
+import { QuickAddProductForm } from './QuickAddProductForm';
 import { stockService } from '@/services/stockService';
 
 const LazyBarcodeScanner = lazy(() =>
@@ -37,6 +38,7 @@ export function BatchScanSession({
   const [showSummary, setShowSummary] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
+  const [quickAddBarcode, setQuickAddBarcode] = useState<string | null>(null);
   const scanCountRef = useRef(0);
 
   const playBeep = useCallback((success: boolean) => {
@@ -204,6 +206,27 @@ export function BatchScanSession({
     scanCountRef.current = 0;
   };
 
+  // When a product is created via quick-add, convert the not_found item to a pending item
+  const handleQuickAddCreated = useCallback(
+    (product: import('@/types/stock').Product) => {
+      const bc = quickAddBarcode;
+      if (!bc) return;
+      setItems((prev) =>
+        prev.map((item) =>
+          item.barcode === bc && item.status === 'not_found'
+            ? {
+                ...item,
+                product,
+                status: 'pending' as const,
+              }
+            : item
+        )
+      );
+      setQuickAddBarcode(null);
+    },
+    [quickAddBarcode]
+  );
+
   const pendingCount = items.filter((i) => i.status === 'pending' && i.product).length;
   const successCount = items.filter((i) => i.status === 'success').length;
   const errorCount = items.filter((i) => i.status === 'error').length;
@@ -300,7 +323,7 @@ export function BatchScanSession({
                 }
                 onUpdateItem={updateItem}
                 onRemoveItem={removeItem}
-                onAddNewProduct={onAddNewProduct}
+                onQuickAdd={(barcode) => setQuickAddBarcode(barcode)}
               />
             ))
           )}
@@ -347,6 +370,16 @@ export function BatchScanSession({
             onScan={handleScan}
           />
         </Suspense>
+      )}
+
+      {/* Quick Add Product — inline within batch session */}
+      {quickAddBarcode && (
+        <QuickAddProductForm
+          barcode={quickAddBarcode}
+          isOpen={!!quickAddBarcode}
+          onClose={() => setQuickAddBarcode(null)}
+          onProductCreated={handleQuickAddCreated}
+        />
       )}
     </div>
   );
