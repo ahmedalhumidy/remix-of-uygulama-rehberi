@@ -1,4 +1,4 @@
-import { Truck, Clock } from 'lucide-react';
+import { Truck, Clock, Package } from 'lucide-react';
 import { useDeliveryEstimate } from '../hooks/useDeliveryEstimate';
 
 interface DeliveryEstimateProps {
@@ -22,22 +22,29 @@ export function DeliveryEstimateDisplay({ city }: DeliveryEstimateProps) {
   const formattedDate = deliveryDate.toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long' });
 
   return (
-    <div className="border rounded-lg p-3 space-y-2">
-      <div className="flex items-center gap-2 text-sm font-medium">
-        <Truck className="h-4 w-4 text-primary" />
+    <div className="border border-border/50 rounded-xl p-4 bg-card/50 space-y-3">
+      <div className="flex items-center gap-2 font-medium text-sm">
+        <div className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center">
+          <Truck className="h-4 w-4 text-primary" />
+        </div>
         Tahmini Teslimat
       </div>
-      <div className="flex items-center gap-2 text-sm">
-        <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+      <div className="flex items-center gap-2 text-sm pl-9">
+        <Clock className="h-3.5 w-3.5 text-success" />
         <span>
-          <strong>{formattedDate}</strong>
-          {' tarihine kadar'}
+          <strong className="text-success">{formattedDate}</strong>
+          {' tarihine kadar teslim'}
         </span>
       </div>
       {displayEstimates.map((e, i) => (
-        <div key={i} className="flex items-center justify-between text-xs text-muted-foreground pl-6">
-          <span>{e.carrier_name} ({e.estimated_days} gün)</span>
-          <span>{e.fee > 0 ? `₺${e.fee.toFixed(2)}` : 'Ücretsiz'}</span>
+        <div key={i} className="flex items-center justify-between text-xs text-muted-foreground pl-9">
+          <div className="flex items-center gap-1.5">
+            <Package className="h-3 w-3" />
+            {e.carrier_name} ({e.estimated_days} iş günü)
+          </div>
+          <span className={e.fee > 0 ? 'font-medium' : 'text-success font-medium'}>
+            {e.fee > 0 ? `₺${e.fee.toFixed(2)}` : 'Ücretsiz'}
+          </span>
         </div>
       ))}
     </div>
