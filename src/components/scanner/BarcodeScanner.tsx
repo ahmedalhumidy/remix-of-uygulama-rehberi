@@ -14,9 +14,11 @@ interface BarcodeScannerProps {
   isOpen: boolean;
   onClose: () => void;
   onScan: (code: string) => void;
+  /** When true, scanner stays open after each scan for continuous scanning */
+  continuous?: boolean;
 }
 
-export function BarcodeScanner({ isOpen, onClose, onScan }: BarcodeScannerProps) {
+export function BarcodeScanner({ isOpen, onClose, onScan, continuous = false }: BarcodeScannerProps) {
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,6 +26,8 @@ export function BarcodeScanner({ isOpen, onClose, onScan }: BarcodeScannerProps)
   const [currentCameraIndex, setCurrentCameraIndex] = useState(0);
   const [hasFlash, setHasFlash] = useState(false);
   const [flashOn, setFlashOn] = useState(false);
+  const lastContinuousScanRef = useRef<string>('');
+  const lastContinuousScanTimeRef = useRef<number>(0);
 
   const containerId = 'barcode-scanner-container';
 
@@ -79,12 +83,26 @@ export function BarcodeScanner({ isOpen, onClose, onScan }: BarcodeScannerProps)
         cameras[currentCameraIndex].id,
         config,
         (decodedText) => {
-          // Play success sound
-          const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2teleQ4HT4/f/bqGFQ4ek/L/2aIqDgQf');
-          audio.play().catch(() => {});
-          
-          onScan(decodedText);
-          handleClose();
+          if (continuous) {
+            // In continuous mode, debounce same barcode within 1.5s
+            const now = Date.now();
+            if (
+              decodedText === lastContinuousScanRef.current &&
+              now - lastContinuousScanTimeRef.current < 1500
+            ) {
+              return; // skip duplicate
+            }
+            lastContinuousScanRef.current = decodedText;
+            lastContinuousScanTimeRef.current = now;
+            onScan(decodedText);
+            // Don't close - keep scanning
+          } else {
+            // Legacy single-scan mode
+            const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2teleQ4HT4/f/bqGFQ4ek/L/2aIqDgQf');
+            audio.play().catch(() => {});
+            onScan(decodedText);
+            handleClose();
+          }
         },
         (errorMessage) => {
           // Ignore scan errors (no code found)

@@ -268,6 +268,7 @@ export function ScanSessionModal({
             isOpen={cameraOpen}
             onClose={() => setCameraOpen(false)}
             onScan={handleCameraScan}
+            continuous
           />
         </Suspense>
       )}
