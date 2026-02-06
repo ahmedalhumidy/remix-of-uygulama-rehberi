@@ -292,6 +292,7 @@ const Index = () => {
               searchQuery={searchQuery}
               onAddMovement={handleAddMovement}
               onAddNewProduct={handleAddNewProductFromMovement}
+              onStockUpdated={refreshProducts}
             />
           )}
 
