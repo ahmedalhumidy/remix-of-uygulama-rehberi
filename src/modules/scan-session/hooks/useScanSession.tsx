@@ -253,9 +253,9 @@ export function useScanSession({ products, onComplete }: UseScanSessionOptions) 
   // Process the entire queue
   const processQueue = useCallback(async (): Promise<ScanSessionResult | null> => {
     if (!session) return null;
-    const pendingItems = session.queue.filter(q => q.status === 'pending' && q.productId);
+    const pendingItems = session.queue.filter(q => q.status === 'pending' && q.productId && (q.units > 0 || q.sets > 0));
     if (pendingItems.length === 0) {
-      toast.error('İşlenecek ürün bulunamadı');
+      toast.error('İşlenecek ürün bulunamadı (miktar 0 olamaz)');
       return null;
     }
 
