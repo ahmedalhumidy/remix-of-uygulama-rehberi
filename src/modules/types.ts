@@ -8,7 +8,8 @@ export type ModuleKey =
   | 'workflows'
   | 'automation'
   | 'audit_enhanced'
-  | 'offline_enhanced';
+  | 'offline_enhanced'
+  | 'store_module';
 
 export interface FeatureFlag {
   id: string;
@@ -47,4 +48,5 @@ export const MODULE_METADATA: Record<ModuleKey, { icon: string; category: string
   automation: { icon: 'Zap', category: 'Otomasyon' },
   audit_enhanced: { icon: 'Eye', category: 'Denetim' },
   offline_enhanced: { icon: 'WifiOff', category: 'Altyapı' },
+  store_module: { icon: 'Store', category: 'Mağaza' },
 };
