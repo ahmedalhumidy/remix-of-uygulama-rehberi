@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback, lazy, Suspense } from 'react';
+import { useEffect, useState, useCallback, lazy, Suspense } from 'react';
 import {
   X, Camera, Undo2, Trash2, CheckCircle2, ScanBarcode,
   MapPin, ArrowRightLeft, Keyboard, Package, AlertTriangle

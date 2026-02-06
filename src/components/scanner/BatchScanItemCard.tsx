@@ -1,6 +1,6 @@
 import {
   Package, Check, AlertTriangle, Trash2,
-  Plus, Minus, ChevronDown, ChevronUp, ExternalLink,
+  Plus, Minus, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { Product } from '@/types/stock';
 import { Button } from '@/components/ui/button';

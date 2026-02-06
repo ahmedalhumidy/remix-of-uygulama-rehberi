@@ -1,4 +1,4 @@
-import { CheckCircle2, Package, AlertCircle, Clock } from 'lucide-react';
+import { CheckCircle2, Package, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScanSessionResult, ScanSessionMode } from '../types';
 

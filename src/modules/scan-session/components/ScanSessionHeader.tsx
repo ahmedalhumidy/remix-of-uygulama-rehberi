@@ -1,6 +1,5 @@
 import { MapPin, Camera, Keyboard, Wifi } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { ScanSessionState, ScanTarget, ScanInputMethod } from '../types';
 import { cn } from '@/lib/utils';
 
