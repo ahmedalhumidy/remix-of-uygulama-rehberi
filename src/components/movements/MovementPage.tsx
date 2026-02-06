@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { ArrowLeftRight, Plus, History, ShieldAlert } from 'lucide-react';
 import { Product, StockMovement } from '@/types/stock';
 import { MovementForm } from './MovementForm';
@@ -6,6 +6,11 @@ import { MovementHistory } from './MovementHistory';
 import { cn } from '@/lib/utils';
 import { usePermissions } from '@/hooks/usePermissions';
 import { Card, CardContent } from '@/components/ui/card';
+import { useFeatureFlags } from '@/hooks/useFeatureFlags';
+
+const ScanSessionLauncher = lazy(() =>
+  import('@/modules/scan-session/components/ScanSessionLauncher').then(m => ({ default: m.ScanSessionLauncher }))
+);
 
 interface MovementPageProps {
   products: Product[];
@@ -21,53 +26,68 @@ interface MovementPageProps {
     note?: string;
   }) => void;
   onAddNewProduct?: (barcode: string) => void;
+  onStockUpdated?: () => void;
 }
 
 type Tab = 'form' | 'history';
 
-export function MovementPage({ products, movements, searchQuery, onAddMovement, onAddNewProduct }: MovementPageProps) {
+export function MovementPage({ products, movements, searchQuery, onAddMovement, onAddNewProduct, onStockUpdated }: MovementPageProps) {
   const { hasPermission } = usePermissions();
+  const { isModuleEnabled } = useFeatureFlags();
   const canCreateMovements = hasPermission('stock_movements.create');
+  const scanSessionEnabled = isModuleEnabled('scan_session');
   const [activeTab, setActiveTab] = useState<Tab>(canCreateMovements ? 'form' : 'history');
 
   return (
     <div className="space-y-6 animate-slide-up">
-      {/* Tab Navigation */}
-      <div className="flex gap-2 p-1 bg-muted/50 rounded-xl w-fit">
-        {canCreateMovements && (
+      {/* Tab Navigation + Scan Session */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex gap-2 p-1 bg-muted/50 rounded-xl w-fit">
+          {canCreateMovements && (
+            <button
+              onClick={() => setActiveTab('form')}
+              className={cn(
+                'flex items-center gap-2 px-4 py-2.5 rounded-lg transition-all font-medium',
+                activeTab === 'form'
+                  ? 'bg-card text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              <Plus className="w-4 h-4" />
+              Yeni Hareket
+            </button>
+          )}
           <button
-            onClick={() => setActiveTab('form')}
+            onClick={() => setActiveTab('history')}
             className={cn(
               'flex items-center gap-2 px-4 py-2.5 rounded-lg transition-all font-medium',
-              activeTab === 'form' 
-                ? 'bg-card text-foreground shadow-sm' 
+              activeTab === 'history'
+                ? 'bg-card text-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground'
             )}
           >
-            <Plus className="w-4 h-4" />
-            Yeni Hareket
+            <History className="w-4 h-4" />
+            Hareket Geçmişi
           </button>
+        </div>
+
+        {/* Scan Session Launcher (feature-flagged) */}
+        {scanSessionEnabled && canCreateMovements && (
+          <Suspense fallback={null}>
+            <ScanSessionLauncher
+              products={products}
+              onStockUpdated={onStockUpdated}
+            />
+          </Suspense>
         )}
-        <button
-          onClick={() => setActiveTab('history')}
-          className={cn(
-            'flex items-center gap-2 px-4 py-2.5 rounded-lg transition-all font-medium',
-            activeTab === 'history' 
-              ? 'bg-card text-foreground shadow-sm' 
-              : 'text-muted-foreground hover:text-foreground'
-          )}
-        >
-          <History className="w-4 h-4" />
-          Hareket Geçmişi
-        </button>
       </div>
 
       {/* Content */}
       {activeTab === 'form' && canCreateMovements && (
         <div className="max-w-xl">
-          <MovementForm 
-            products={products} 
-            onSubmit={onAddMovement} 
+          <MovementForm
+            products={products}
+            onSubmit={onAddMovement}
             onAddNewProduct={onAddNewProduct}
           />
         </div>
