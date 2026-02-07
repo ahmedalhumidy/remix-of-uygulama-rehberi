@@ -17,16 +17,6 @@ const passwordSchema = z.string()
   .regex(/[0-9]/, 'En az bir rakam içermelidir')
   .regex(/[^a-zA-Z0-9]/, 'En az bir özel karakter içermelidir');
 
-const getPasswordErrors = (password: string): string[] => {
-  const errors: string[] = [];
-  if (password.length < 8) errors.push('En az 8 karakter');
-  if (!/[a-z]/.test(password)) errors.push('Küçük harf');
-  if (!/[A-Z]/.test(password)) errors.push('Büyük harf');
-  if (!/[0-9]/.test(password)) errors.push('Rakam');
-  if (!/[^a-zA-Z0-9]/.test(password)) errors.push('Özel karakter');
-  return errors;
-};
-
 export default function Auth() {
   const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true);
@@ -42,24 +32,57 @@ export default function Auth() {
       toast.error('Geçerli bir e-posta adresi girin');
       return false;
     }
+
     try {
       passwordSchema.parse(password);
-    } catch {
-      toast.error('Şifre en az 6 karakter olmalı');
+    } catch (err) {
+      // Better error message
+      toast.error('Şifre: 8+ karakter, küçük/büyük harf, rakam ve özel karakter içermeli');
       return false;
     }
+
     if (!isLogin && !fullName.trim()) {
       toast.error('Lütfen adınızı girin');
       return false;
     }
+
     return true;
+  };
+
+  // ✅ NEW: Forgot password handler
+  const handleForgotPassword = async () => {
+    try {
+      emailSchema.parse(email);
+    } catch {
+      toast.error('Lütfen önce geçerli bir e-posta girin');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+
+      toast.success('Şifre sıfırlama e-postası gönderildi. Lütfen e-postanızı kontrol edin.');
+    } catch (error) {
+      console.error('Reset password error:', error);
+      toast.error('Bir hata oluştu. Lütfen tekrar deneyin.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateInputs()) return;
-    
+
     setLoading(true);
 
     try {
@@ -68,7 +91,7 @@ export default function Auth() {
           email,
           password,
         });
-        
+
         if (error) {
           if (error.message.includes('Invalid login credentials')) {
             toast.error('E-posta veya şifre hatalı');
@@ -94,12 +117,12 @@ export default function Auth() {
             return;
           }
         }
-        
+
         toast.success('Giriş başarılı!');
         navigate('/');
       } else {
         const redirectUrl = `${window.location.origin}/`;
-        
+
         const { error } = await supabase.auth.signUp({
           email,
           password,
@@ -110,7 +133,7 @@ export default function Auth() {
             },
           },
         });
-        
+
         if (error) {
           if (error.message.includes('already registered')) {
             toast.error('Bu e-posta adresi zaten kayıtlı');
@@ -119,7 +142,7 @@ export default function Auth() {
           }
           return;
         }
-        
+
         toast.success('Kayıt başarılı! Lütfen e-posta adresinizi doğrulayın.');
       }
     } catch (error) {
@@ -142,6 +165,7 @@ export default function Auth() {
             {isLogin ? 'Hesabınıza giriş yapın' : 'Yeni hesap oluşturun'}
           </CardDescription>
         </CardHeader>
+
         <CardContent>
           <form onSubmit={handleAuth} className="space-y-4">
             {!isLogin && (
@@ -157,7 +181,7 @@ export default function Auth() {
                 />
               </div>
             )}
-            
+
             <div className="space-y-2">
               <Label htmlFor="email">E-posta</Label>
               <Input
@@ -169,7 +193,7 @@ export default function Auth() {
                 disabled={loading}
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="password">Şifre</Label>
               <Input
@@ -180,6 +204,21 @@ export default function Auth() {
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={loading}
               />
+
+              {/* ✅ NEW: Forgot password link (only on login) */}
+              {isLogin && (
+                <div className="text-right">
+                  <button
+                    type="button"
+                    onClick={handleForgotPassword}
+                    className="text-xs text-muted-foreground hover:text-primary transition-colors"
+                    disabled={loading}
+                  >
+                    Şifremi unuttum
+                  </button>
+                </div>
+              )}
+
               {!isLogin && password && (
                 <div className="text-xs space-y-1">
                   <p className="text-muted-foreground">Şifre gereksinimleri:</p>
@@ -191,7 +230,10 @@ export default function Auth() {
                       { check: /[0-9]/.test(password), label: 'Rakam' },
                       { check: /[^a-zA-Z0-9]/.test(password), label: 'Özel karakter' },
                     ].map((req) => (
-                      <li key={req.label} className={req.check ? 'text-green-600' : 'text-muted-foreground'}>
+                      <li
+                        key={req.label}
+                        className={req.check ? 'text-green-600' : 'text-muted-foreground'}
+                      >
                         {req.check ? '✓' : '○'} {req.label}
                       </li>
                     ))}
@@ -199,7 +241,7 @@ export default function Auth() {
                 </div>
               )}
             </div>
-            
+
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? (
                 <Loader2 className="w-4 h-4 animate-spin mr-2" />
@@ -211,7 +253,7 @@ export default function Auth() {
               {isLogin ? 'Giriş Yap' : 'Kayıt Ol'}
             </Button>
           </form>
-          
+
           <div className="mt-4 text-center">
             <button
               type="button"
