@@ -80,13 +80,18 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 const AppRoutes = () => (
   <Suspense fallback={<PageLoader />}>
     <Routes>
-     <Route path="/reset-password" element={<ResetPassword />} />
- 
-     <Route path="/auth" element={
+
+      {/* ⬇️ ADD THIS LINE EXACTLY HERE */}
+      <Route path="/reset-password" element={<ResetPassword />} />
+
+      <Route path="/auth" element={
         <PublicRoute>
           <Auth />
         </PublicRoute>
       } />
+
+ 
+    
       <Route path="/" element={
         <ProtectedRoute>
           <Index />
