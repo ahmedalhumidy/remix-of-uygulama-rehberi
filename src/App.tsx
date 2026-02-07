@@ -16,7 +16,7 @@ import { OfflineIndicator } from "@/components/pwa/OfflineIndicator";
 const Index = lazy(() => import("./pages/Index"));
 const Auth = lazy(() => import("./pages/Auth"));
 const Install = lazy(() => import("./pages/Install"));
-const ResetPassword = lazy(() => import("@/pages/ResetPassword"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const StoreFront = lazy(() => import("./pages/StoreFront"));
 const StoreProducts = lazy(() => import("./pages/StoreProducts"));
