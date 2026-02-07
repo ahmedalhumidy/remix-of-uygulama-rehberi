@@ -1,4 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect(() => {
+  const init = async () => {
+    // 🔥 This line converts the email link token into a real session
+    await supabase.auth.getSessionFromUrl({ storeSession: true });
+
+    setReady(true);
+  };
+
+  init();
+}, []);
+
 import { supabase } from "@/integrations/supabase/client";
 
 export default function ResetPassword() {
