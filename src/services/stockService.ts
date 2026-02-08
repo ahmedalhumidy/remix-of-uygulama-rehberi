@@ -109,7 +109,52 @@ export const stockService = {
           shelf_id: input.shelfId || null,
           is_deleted: false, // ✅ fix
         })
+              // ✅ Insert first (minimal select) to avoid join/RLS issues
+      const { data: inserted, error: insertErr } = await supabase
+        .from('stock_movements')
+        .insert({
+          product_id: input.productId,
+          movement_type: input.type,
+          quantity: input.quantity,
+          set_quantity: input.setQuantity || 0,
+          movement_date: input.date,
+          movement_time: input.time,
+          handled_by: profile.full_name,
+          notes: input.note || null,
+          created_by: userId,
+          shelf_id: input.shelfId || null,
+          is_deleted: false,
+        })
+        .select('id, product_id, movement_type, quantity, set_quantity, movement_date, movement_time, handled_by, notes, shelf_id')
+        .single();
+
+      if (insertErr) throw insertErr;
+
+      // ✅ Now fetch with joins (safe)
+      const { data: newMovement, error: fetchErr } = await supabase
+        .from('stock_movements')
         .select('*, products(urun_adi), shelves(name)')
+        .eq('id', inserted.id)
+        .single();
+
+      if (fetchErr) {
+        // Fallback: use inserted data only (still not null)
+        const fallbackResult: StockMovementResult = {
+          id: inserted.id,
+          productId: inserted.product_id,
+          productName: 'Bilinmeyen Ürün',
+          type: inserted.movement_type as 'giris' | 'cikis',
+          quantity: inserted.quantity,
+          setQuantity: inserted.set_quantity || 0,
+          date: inserted.movement_date,
+          time: inserted.movement_time?.slice(0, 5) || undefined,
+          handledBy: inserted.handled_by,
+          note: inserted.notes || undefined,
+          shelfId: inserted.shelf_id || undefined,
+        };
+        return fallbackResult;
+      }
+
         .single();
 
       if (error) throw error;
