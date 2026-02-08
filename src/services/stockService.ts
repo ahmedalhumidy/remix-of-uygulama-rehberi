@@ -155,7 +155,7 @@ export const stockService = {
         return fallbackResult;
       }
 
-        .single();
+       
 
       if (error) throw error;
 
