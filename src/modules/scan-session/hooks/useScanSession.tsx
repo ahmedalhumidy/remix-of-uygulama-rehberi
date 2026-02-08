@@ -125,20 +125,33 @@ export function useScanSession({ products, onComplete }: UseScanSessionOptions) 
   }, []);
 
   const setActiveShelf = useCallback((shelfId: string | null, shelfName: string | null) => {
-    setSession(prev => {
-      if (!prev) return null;
-      if (prev.mode === 'transfer') {
-        if (prev.transferStep === 'from') {
-          return { ...prev, fromShelfId: shelfId, fromShelfName: shelfName, transferStep: 'scan' };
-        }
-        if (prev.transferStep === 'to') {
-          return { ...prev, toShelfId: shelfId, toShelfName: shelfName };
-        }
-        return prev;
+  setSession(prev => {
+    if (!prev) return null;
+
+    // transfer mode logic stays same
+    if (prev.mode === 'transfer') {
+      if (prev.transferStep === 'from') {
+        return { ...prev, fromShelfId: shelfId, fromShelfName: shelfName, transferStep: 'scan' };
       }
-      return { ...prev, activeShelfId: shelfId, activeShelfName: shelfName };
+      if (prev.transferStep === 'to') {
+        return { ...prev, toShelfId: shelfId, toShelfName: shelfName };
+      }
+      return prev;
+    }
+
+    // ✅ IMPORTANT:
+    // When user selects an active shelf, apply it to any PENDING items that have no shelf yet
+    const updatedQueue = prev.queue.map(q => {
+      if (q.status === 'pending' && !q.shelfId) {
+        return { ...q, shelfId, shelfName };
+      }
+      return q;
     });
-  }, []);
+
+    return { ...prev, activeShelfId: shelfId, activeShelfName: shelfName, queue: updatedQueue };
+  });
+}, []);
+
 
   const setTransferStep = useCallback((step: 'from' | 'scan' | 'to') => {
     setSession(prev => prev ? { ...prev, transferStep: step } : null);
