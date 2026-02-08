@@ -22,8 +22,12 @@ import { toast } from "sonner";
 const UserManagement = lazy(() =>
   import("@/components/users/UserManagement").then((m) => ({ default: m.UserManagement })),
 );
-const AuditLogList = lazy(() => import("@/components/users/AuditLogList").then((m) => ({ default: m.AuditLogList })));
-const ReportsPage = lazy(() => import("@/components/reports/ReportsPage").then((m) => ({ default: m.ReportsPage })));
+const AuditLogList = lazy(() =>
+  import("@/components/users/AuditLogList").then((m) => ({ default: m.AuditLogList }))
+);
+const ReportsPage = lazy(() =>
+  import("@/components/reports/ReportsPage").then((m) => ({ default: m.ReportsPage }))
+);
 const ProfileSettings = lazy(() =>
   import("@/components/profile/ProfileSettings").then((m) => ({ default: m.ProfileSettings })),
 );
@@ -56,6 +60,7 @@ const Index = () => {
     deleteProduct,
     refreshProducts,
   } = useProducts();
+
   const { movements, loading: movementsLoading, addMovement, refreshMovements } = useMovements(products);
 
   const { currentView, setCurrentView } = useCurrentView();
@@ -70,6 +75,12 @@ const Index = () => {
   const [pendingBarcode, setPendingBarcode] = useState<string | undefined>();
 
   const lowStockCount = products.filter((p) => p.mevcutStok < p.minStok).length;
+
+  // ✅ ONE PLACE: refresh both products + movements (fixes batch barcode not showing in history/reports)
+  const refreshAll = () => {
+    refreshProducts();
+    refreshMovements();
+  };
 
   const handleAddProduct = () => {
     setSelectedProduct(null);
@@ -113,8 +124,8 @@ const Index = () => {
       shelfId,
     });
 
-    // Refresh products to get updated stock
-    refreshProducts();
+    // ✅ refresh both (so it appears in movements/reports immediately)
+    refreshAll();
   };
 
   const handleAddMovement = async (data: {
@@ -128,7 +139,9 @@ const Index = () => {
     shelfId?: string;
   }) => {
     await addMovement(data);
-    refreshProducts();
+
+    // ✅ refresh both
+    refreshAll();
   };
 
   const handleViewProduct = (id: string) => {
@@ -176,7 +189,7 @@ const Index = () => {
     profile: "Profil Ayarları",
     settings: "Sistem Ayarları",
     archive: "Arşiv Yönetimi",
-    'control-center': "Kontrol Merkezi",
+    "control-center": "Kontrol Merkezi",
   };
 
   const isLoading = productsLoading || movementsLoading;
@@ -241,7 +254,8 @@ const Index = () => {
           products={products}
           onProductFound={handleScanProductFound}
           onBarcodeNotFound={handleScanBarcodeNotFound}
-          onStockUpdated={refreshProducts}
+          // ✅ when stock updated from header scan, refresh both
+          onStockUpdated={refreshAll}
         />
 
         <main className="p-3 md:p-6 pb-safe">
@@ -292,7 +306,8 @@ const Index = () => {
               searchQuery={searchQuery}
               onAddMovement={handleAddMovement}
               onAddNewProduct={handleAddNewProductFromMovement}
-              onStockUpdated={refreshProducts}
+              // ✅ critical: when scan session updates stock, refresh both
+              onStockUpdated={refreshAll}
             />
           )}
 
@@ -364,7 +379,7 @@ const Index = () => {
         onSave={handleSaveProduct}
         product={selectedProduct}
         initialBarcode={pendingBarcode}
-        onStockUpdated={refreshProducts}
+        onStockUpdated={refreshAll} // ✅ refresh both
       />
 
       <StockActionModal
@@ -374,7 +389,7 @@ const Index = () => {
           setSelectedProduct(null);
         }}
         onSuccess={() => {
-          refreshProducts();
+          refreshAll(); // ✅ refresh both
         }}
         product={selectedProduct}
         actionType={stockActionType}
