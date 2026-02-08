@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import {
   getOfflineQueue,
@@ -7,7 +8,6 @@ import {
   setupOnlineListener,
   isOnline,
 } from '@/lib/offlineSync';
-import { stockService } from '@/services/stockService'; // ✅ NEW
 
 export function useOfflineSync() {
   const [pendingActions, setPendingActions] = useState<SyncAction[]>([]);
@@ -19,23 +19,36 @@ export function useOfflineSync() {
 
   const syncAction = async (action: SyncAction): Promise<boolean> => {
     try {
-      // ✅ Only handle stock movements here (safe)
-      if (action.type !== 'stock_movement') return true;
+      const { data: session } = await supabase.auth.getSession();
+      const userId = session.session?.user.id;
+      if (!userId) return false;
 
-      // ✅ Use the unified service so triggers + raf_konum update run
-      const result = await stockService.createMovement({
-        productId: action.data.productId,
-        type: action.data.type,
-        quantity: action.data.quantity,
-        setQuantity: action.data.setQuantity || 0,
-        date: action.data.date,
-        time: action.data.time,
-        note: action.data.note,
-        shelfId: action.data.shelfId,
-      });
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('user_id', userId)
+        .single();
 
-      // If result is null, it means failed (or was re-queued offline)
-      return !!result;
+      if (!profile) return false;
+
+      const { error } = await supabase
+        .from('stock_movements')
+        .insert({
+          product_id: action.data.productId,
+          movement_type: action.data.type,
+          quantity: action.data.quantity,
+          set_quantity: action.data.setQuantity || 0,
+          movement_date: action.data.date,
+          movement_time: action.data.time,
+          handled_by: profile.full_name,
+          notes: action.data.note || null,
+          created_by: userId,
+          shelf_id: action.data.shelfId || null,
+          is_deleted: false, // ✅ fix
+        });
+
+      if (error) throw error;
+      return true;
     } catch (error) {
       console.error('Sync failed for action:', action.id, error);
       return false;
@@ -69,15 +82,8 @@ export function useOfflineSync() {
 
   useEffect(() => {
     loadQueue();
-
-    const cleanup = setupOnlineListener(() => {
-      syncAll();
-    });
-
-    if (isOnline()) {
-      syncAll();
-    }
-
+    const cleanup = setupOnlineListener(() => syncAll());
+    if (isOnline()) syncAll();
     return cleanup;
   }, [loadQueue, syncAll]);
 
