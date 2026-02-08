@@ -23,10 +23,10 @@ const UserManagement = lazy(() =>
   import("@/components/users/UserManagement").then((m) => ({ default: m.UserManagement })),
 );
 const AuditLogList = lazy(() =>
-  import("@/components/users/AuditLogList").then((m) => ({ default: m.AuditLogList }))
+  import("@/components/users/AuditLogList").then((m) => ({ default: m.AuditLogList })),
 );
 const ReportsPage = lazy(() =>
-  import("@/components/reports/ReportsPage").then((m) => ({ default: m.ReportsPage }))
+  import("@/components/reports/ReportsPage").then((m) => ({ default: m.ReportsPage })),
 );
 const ProfileSettings = lazy(() =>
   import("@/components/profile/ProfileSettings").then((m) => ({ default: m.ProfileSettings })),
@@ -61,11 +61,18 @@ const Index = () => {
     refreshProducts,
   } = useProducts();
 
-  const { movements, loading: movementsLoading, addMovement, refreshMovements } = useMovements(products);
+  const { movements, loading: movementsLoading, addMovement, refreshMovements } =
+    useMovements(products);
 
   const { currentView, setCurrentView } = useCurrentView();
   const [searchQuery, setSearchQuery] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // ✅ One function = refresh everything
+  const handleStockUpdated = async () => {
+    await refreshProducts();
+    await refreshMovements();
+  };
 
   // Modals
   const [productModalOpen, setProductModalOpen] = useState(false);
@@ -75,12 +82,6 @@ const Index = () => {
   const [pendingBarcode, setPendingBarcode] = useState<string | undefined>();
 
   const lowStockCount = products.filter((p) => p.mevcutStok < p.minStok).length;
-
-  // ✅ ONE PLACE: refresh both products + movements (fixes batch barcode not showing in history/reports)
-  const refreshAll = () => {
-    refreshProducts();
-    refreshMovements();
-  };
 
   const handleAddProduct = () => {
     setSelectedProduct(null);
@@ -98,10 +99,13 @@ const Index = () => {
     } else {
       await addProduct(productData);
     }
+    // after save, refresh
+    await handleStockUpdated();
   };
 
   const handleDeleteProduct = async (id: string) => {
     await deleteProduct(id);
+    await handleStockUpdated();
   };
 
   const handleStockAction = (product: Product, type: "giris" | "cikis") => {
@@ -110,7 +114,12 @@ const Index = () => {
     setStockActionModalOpen(true);
   };
 
-  const handleStockActionConfirm = async (quantity: number, setQuantity: number, note: string, shelfId?: string) => {
+  const handleStockActionConfirm = async (
+    quantity: number,
+    setQuantity: number,
+    note: string,
+    shelfId?: string
+  ) => {
     if (!selectedProduct) return;
 
     await addMovement({
@@ -124,8 +133,8 @@ const Index = () => {
       shelfId,
     });
 
-    // ✅ refresh both (so it appears in movements/reports immediately)
-    refreshAll();
+    // ✅ refresh both
+    await handleStockUpdated();
   };
 
   const handleAddMovement = async (data: {
@@ -139,9 +148,7 @@ const Index = () => {
     shelfId?: string;
   }) => {
     await addMovement(data);
-
-    // ✅ refresh both
-    refreshAll();
+    await handleStockUpdated();
   };
 
   const handleViewProduct = (id: string) => {
@@ -254,12 +261,11 @@ const Index = () => {
           products={products}
           onProductFound={handleScanProductFound}
           onBarcodeNotFound={handleScanBarcodeNotFound}
-          // ✅ when stock updated from header scan, refresh both
-          onStockUpdated={refreshAll}
+          // ✅ refresh both
+          onStockUpdated={handleStockUpdated}
         />
 
         <main className="p-3 md:p-6 pb-safe">
-          {/* Page Title with Sign Out - Hidden on dashboard to avoid duplication */}
           {currentView !== "dashboard" && (
             <div className="mb-4 md:mb-6 flex items-center justify-between">
               <div>
@@ -273,7 +279,6 @@ const Index = () => {
             </div>
           )}
 
-          {/* Dashboard has its own header, just show sign out */}
           {currentView === "dashboard" && (
             <div className="flex justify-end mb-3 md:mb-4">
               <Button variant="outline" size="sm" onClick={handleSignOut} className="h-8 md:h-9 text-xs md:text-sm">
@@ -283,7 +288,6 @@ const Index = () => {
             </div>
           )}
 
-          {/* Content */}
           {currentView === "dashboard" && (
             <Dashboard products={products} movements={movements} onViewProduct={handleViewProduct} />
           )}
@@ -306,8 +310,8 @@ const Index = () => {
               searchQuery={searchQuery}
               onAddMovement={handleAddMovement}
               onAddNewProduct={handleAddNewProductFromMovement}
-              // ✅ critical: when scan session updates stock, refresh both
-              onStockUpdated={refreshAll}
+              // ✅ refresh both
+              onStockUpdated={handleStockUpdated}
             />
           )}
 
@@ -379,7 +383,8 @@ const Index = () => {
         onSave={handleSaveProduct}
         product={selectedProduct}
         initialBarcode={pendingBarcode}
-        onStockUpdated={refreshAll} // ✅ refresh both
+        // ✅ refresh both
+        onStockUpdated={handleStockUpdated}
       />
 
       <StockActionModal
@@ -389,7 +394,8 @@ const Index = () => {
           setSelectedProduct(null);
         }}
         onSuccess={() => {
-          refreshAll(); // ✅ refresh both
+          // ✅ refresh both
+          handleStockUpdated();
         }}
         product={selectedProduct}
         actionType={stockActionType}
