@@ -39,7 +39,7 @@ export const stockService = {
    * This is the ONLY way to modify stock - ensures all movements are recorded
    */
   async createMovement(input: StockMovementInput): Promise<StockMovementResult | null> {
-    // Check if offline - queue the action
+    // Offline: queue the action
     if (!isOnline()) {
       addToOfflineQueue({
         type: 'stock_movement',
@@ -103,7 +103,7 @@ export const stockService = {
         }
       }
 
-      // Create the movement record - the trigger will update product stock
+      // Insert movement - trigger updates product stock
       const { data: newMovement, error } = await supabase
         .from('stock_movements')
         .insert({
@@ -123,10 +123,9 @@ export const stockService = {
 
       if (error) throw error;
 
-      // ✅ NEW: Update product's current shelf ONLY on giriş
-      // This prevents product location UI from staying "General"
+      // ✅ IMPORTANT FIX: Update product's current shelf ONLY on giriş
+      // This prevents the product location UI from staying "General"
       if (input.type === 'giris' && input.shelfId) {
-        // Get shelf name from shelves table
         const { data: shelfRow, error: shelfErr } = await supabase
           .from('shelves')
           .select('name')
@@ -134,16 +133,17 @@ export const stockService = {
           .single();
 
         if (!shelfErr && shelfRow?.name) {
-          // Update product's raf_konum to the selected shelf name
           const { error: prodErr } = await supabase
             .from('products')
             .update({ raf_konum: shelfRow.name })
             .eq('id', input.productId);
 
           if (prodErr) {
+            // Don't fail the movement if location update fails
             console.warn('Could not update product raf_konum:', prodErr.message);
           }
         } else {
+          // Also don't fail the movement
           console.warn('Could not resolve shelf name for raf_konum update');
         }
       }
@@ -191,7 +191,7 @@ export const stockService = {
 
       if (error) throw error;
 
-      return (data || []).map(m => ({
+      return (data || []).map((m: any) => ({
         id: m.id,
         productId: m.product_id,
         productName: (m.products as any)?.urun_adi || 'Bilinmeyen Ürün',
@@ -215,15 +215,18 @@ export const stockService = {
   /**
    * Get stock summary per shelf for a specific product
    */
-  async getShelfStockSummary(shelfId?: string): Promise<{
-    shelfId: string;
-    shelfName: string;
-    totalMevcutStok: number;
-    totalSetStok: number;
-    productCount: number;
-  }[]> {
+  async getShelfStockSummary(
+    shelfId?: string
+  ): Promise<
+    {
+      shelfId: string;
+      shelfName: string;
+      totalMevcutStok: number;
+      totalSetStok: number;
+      productCount: number;
+    }[]
+  > {
     try {
-      // Get all products grouped by their shelf location
       const { data: products, error } = await supabase
         .from('products')
         .select('id, mevcut_stok, set_stok, raf_konum')
@@ -231,21 +234,21 @@ export const stockService = {
 
       if (error) throw error;
 
-      const { data: shelves } = await supabase
-        .from('shelves')
-        .select('id, name');
+      const { data: shelves } = await supabase.from('shelves').select('id, name');
 
-      // Build shelf summary
-      const shelfMap: Record<string, {
-        shelfId: string;
-        shelfName: string;
-        totalMevcutStok: number;
-        totalSetStok: number;
-        productCount: number;
-      }> = {};
+      const shelfMap: Record<
+        string,
+        {
+          shelfId: string;
+          shelfName: string;
+          totalMevcutStok: number;
+          totalSetStok: number;
+          productCount: number;
+        }
+      > = {};
 
-      (products || []).forEach(p => {
-        const shelf = (shelves || []).find(s => s.name === p.raf_konum);
+      (products || []).forEach((p: any) => {
+        const shelf = (shelves || []).find((s: any) => s.name === p.raf_konum);
         if (shelf) {
           if (!shelfMap[shelf.id]) {
             shelfMap[shelf.id] = {
@@ -263,10 +266,7 @@ export const stockService = {
       });
 
       let results = Object.values(shelfMap);
-
-      if (shelfId) {
-        results = results.filter(s => s.shelfId === shelfId);
-      }
+      if (shelfId) results = results.filter((s) => s.shelfId === shelfId);
 
       return results;
     } catch (error) {
@@ -296,25 +296,16 @@ export const stockService = {
         .select('movement_type, quantity, set_quantity')
         .eq('is_deleted', false);
 
-      if (filters?.dateFrom) {
-        query = query.gte('movement_date', filters.dateFrom);
-      }
-      if (filters?.dateTo) {
-        query = query.lte('movement_date', filters.dateTo);
-      }
-      if (filters?.productId) {
-        query = query.eq('product_id', filters.productId);
-      }
-      if (filters?.shelfId) {
-        query = query.eq('shelf_id', filters.shelfId);
-      }
+      if (filters?.dateFrom) query = query.gte('movement_date', filters.dateFrom);
+      if (filters?.dateTo) query = query.lte('movement_date', filters.dateTo);
+      if (filters?.productId) query = query.eq('product_id', filters.productId);
+      if (filters?.shelfId) query = query.eq('shelf_id', filters.shelfId);
 
       const { data, error } = await query;
-
       if (error) throw error;
 
       const stats = (data || []).reduce(
-        (acc, m) => {
+        (acc: any, m: any) => {
           if (m.movement_type === 'giris') {
             acc.totalIn += m.quantity;
             acc.totalSetIn += m.set_quantity || 0;
