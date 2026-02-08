@@ -1,6 +1,7 @@
-import { useState } from 'react';
-import { MapPin, ScanBarcode } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Dialog,
   DialogContent,
@@ -14,7 +15,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { toast } from 'sonner';
 import { useShelves } from '@/hooks/useShelves';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ScanSessionShelfPickerProps {
   isOpen: boolean;
@@ -24,18 +27,63 @@ interface ScanSessionShelfPickerProps {
 
 export function ScanSessionShelfPicker({ isOpen, onClose, onSelectShelf }: ScanSessionShelfPickerProps) {
   const { shelves, loading } = useShelves();
+
   const [selected, setSelected] = useState<string>('');
+  const [newShelfName, setNewShelfName] = useState('');
+  const [creating, setCreating] = useState(false);
+
+  const normalizedExisting = useMemo(() => {
+    return new Set((shelves || []).map(s => s.name.trim().toLowerCase()));
+  }, [shelves]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setSelected('');
+      setNewShelfName('');
+      setCreating(false);
+    }
+  }, [isOpen]);
 
   const handleConfirm = () => {
     const shelf = shelves.find(s => s.id === selected);
-    if (shelf) {
-      onSelectShelf(shelf.id, shelf.name);
+    if (shelf) onSelectShelf(shelf.id, shelf.name);
+  };
+
+  const handleCreateShelf = async () => {
+    const name = newShelfName.trim();
+    if (!name) {
+      toast.error('Raf adı boş olamaz');
+      return;
+    }
+    if (normalizedExisting.has(name.toLowerCase())) {
+      toast.error('Bu raf zaten mevcut');
+      return;
+    }
+
+    setCreating(true);
+    try {
+      const { data, error } = await supabase
+        .from('shelves')
+        .insert({ name })
+        .select('id, name')
+        .single();
+
+      if (error) throw error;
+
+      toast.success('Yeni raf eklendi');
+      // select newly created shelf immediately
+      onSelectShelf(data.id, data.name);
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e?.message || 'Raf eklenemedi');
+    } finally {
+      setCreating(false);
     }
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[400px]">
+      <DialogContent className="sm:max-w-[420px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <MapPin className="w-5 h-5 text-primary" />
@@ -45,7 +93,7 @@ export function ScanSessionShelfPicker({ isOpen, onClose, onSelectShelf }: ScanS
 
         <div className="space-y-4 py-2">
           <p className="text-sm text-muted-foreground">
-            Raf QR kodunu tarayabilir veya listeden seçebilirsiniz.
+            Listeden raf seçin veya yeni raf ekleyin.
           </p>
 
           <Select value={selected} onValueChange={setSelected}>
@@ -60,6 +108,24 @@ export function ScanSessionShelfPicker({ isOpen, onClose, onSelectShelf }: ScanS
               ))}
             </SelectContent>
           </Select>
+
+          <div className="rounded-lg border p-3 space-y-2">
+            <div className="text-sm font-medium">Yeni Raf Ekle</div>
+            <Input
+              value={newShelfName}
+              onChange={(e) => setNewShelfName(e.target.value)}
+              placeholder="Örn: K-2(10)"
+              disabled={creating}
+            />
+            <Button
+              type="button"
+              className="w-full"
+              onClick={handleCreateShelf}
+              disabled={creating || !newShelfName.trim()}
+            >
+              {creating ? 'Ekleniyor...' : 'Raf Ekle ve Seç'}
+            </Button>
+          </div>
 
           <div className="flex gap-2">
             <Button variant="outline" className="flex-1" onClick={onClose}>
