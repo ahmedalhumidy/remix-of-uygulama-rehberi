@@ -328,7 +328,9 @@ export function useScanSession({ products, onComplete }: UseScanSessionOptions) 
           date: now.toISOString().split('T')[0],
           time: now.toTimeString().slice(0, 5),
           note: `Tarama oturumu [${session.id}]`,
-          shelfId: item.shelfId || session.activeShelfId || undefined,
+          // ✅ if item has shelf use it, otherwise force active shelf
+shelfId: (item.shelfId ?? session.activeShelfId) || undefined,
+
         };
 
         const result = await stockService.createMovement(input);
