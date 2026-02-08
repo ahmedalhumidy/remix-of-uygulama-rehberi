@@ -123,6 +123,31 @@ export const stockService = {
 
       if (error) throw error;
 
+      // ✅ NEW: Update product's current shelf ONLY on giriş
+      // This prevents product location UI from staying "General"
+      if (input.type === 'giris' && input.shelfId) {
+        // Get shelf name from shelves table
+        const { data: shelfRow, error: shelfErr } = await supabase
+          .from('shelves')
+          .select('name')
+          .eq('id', input.shelfId)
+          .single();
+
+        if (!shelfErr && shelfRow?.name) {
+          // Update product's raf_konum to the selected shelf name
+          const { error: prodErr } = await supabase
+            .from('products')
+            .update({ raf_konum: shelfRow.name })
+            .eq('id', input.productId);
+
+          if (prodErr) {
+            console.warn('Could not update product raf_konum:', prodErr.message);
+          }
+        } else {
+          console.warn('Could not resolve shelf name for raf_konum update');
+        }
+      }
+
       const result: StockMovementResult = {
         id: newMovement.id,
         productId: newMovement.product_id,
@@ -238,7 +263,7 @@ export const stockService = {
       });
 
       let results = Object.values(shelfMap);
-      
+
       if (shelfId) {
         results = results.filter(s => s.shelfId === shelfId);
       }
