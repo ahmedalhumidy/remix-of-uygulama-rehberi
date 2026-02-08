@@ -28,18 +28,9 @@ export interface StockMovementResult {
   shelfName?: string;
 }
 
-/**
- * Unified Stock Service - Single source of truth for all stock operations
- * All stock modifications MUST go through this service to ensure consistency
- * between stock_movements table and product stock levels
- */
 export const stockService = {
-  /**
-   * Create a stock movement and automatically update product stock levels
-   * This is the ONLY way to modify stock - ensures all movements are recorded
-   */
   async createMovement(input: StockMovementInput): Promise<StockMovementResult | null> {
-    // Offline: queue the action
+    // Offline => queue
     if (!isOnline()) {
       addToOfflineQueue({
         type: 'stock_movement',
@@ -62,7 +53,6 @@ export const stockService = {
     }
 
     try {
-      // Get current user session
       const { data: session } = await supabase.auth.getSession();
       const userId = session.session?.user.id;
 
@@ -71,7 +61,6 @@ export const stockService = {
         return null;
       }
 
-      // Fetch the user's profile name server-side to prevent impersonation
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('full_name')
@@ -83,7 +72,7 @@ export const stockService = {
         return null;
       }
 
-      // Validate stock for exit operations
+      // خروج: تحقق من المخزون
       if (input.type === 'cikis') {
         const { data: product } = await supabase
           .from('products')
@@ -103,7 +92,8 @@ export const stockService = {
         }
       }
 
-      // Insert movement - trigger updates product stock
+      // ✅ IMPORTANT FIX:
+      // Insert with is_deleted:false so it ALWAYS appears in hareketler + raporlar
       const { data: newMovement, error } = await supabase
         .from('stock_movements')
         .insert({
@@ -117,34 +107,26 @@ export const stockService = {
           notes: input.note || null,
           created_by: userId,
           shelf_id: input.shelfId || null,
+          is_deleted: false, // ✅ fix
         })
         .select('*, products(urun_adi), shelves(name)')
         .single();
 
       if (error) throw error;
 
-      // ✅ IMPORTANT FIX: Update product's current shelf ONLY on giriş
-      // This prevents the product location UI from staying "General"
+      // ✅ OPTIONAL: keep product raf_konum in sync on giriş
       if (input.type === 'giris' && input.shelfId) {
-        const { data: shelfRow, error: shelfErr } = await supabase
+        const { data: shelfRow } = await supabase
           .from('shelves')
           .select('name')
           .eq('id', input.shelfId)
           .single();
 
-        if (!shelfErr && shelfRow?.name) {
-          const { error: prodErr } = await supabase
+        if (shelfRow?.name) {
+          await supabase
             .from('products')
             .update({ raf_konum: shelfRow.name })
             .eq('id', input.productId);
-
-          if (prodErr) {
-            // Don't fail the movement if location update fails
-            console.warn('Could not update product raf_konum:', prodErr.message);
-          }
-        } else {
-          // Also don't fail the movement
-          console.warn('Could not resolve shelf name for raf_konum update');
         }
       }
 
@@ -171,27 +153,26 @@ export const stockService = {
       );
 
       return result;
-    } catch (error) {
-      console.error('Error creating stock movement:', error);
+    } catch (err) {
+      console.error('Error creating stock movement:', err);
       toast.error('Hareket eklenirken hata oluştu');
       return null;
     }
   },
 
-  /**
-   * Fetch all stock movements with product and shelf information
-   */
   async fetchMovements(): Promise<StockMovementResult[]> {
     try {
+      // ✅ IMPORTANT FIX:
+      // include rows where is_deleted is NULL OR FALSE
       const { data, error } = await supabase
         .from('stock_movements')
         .select('*, products(urun_adi), shelves(name)')
-        .eq('is_deleted', false)
+        .or('is_deleted.is.null,is_deleted.eq.false')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      return (data || []).map((m: any) => ({
+      return (data || []).map(m => ({
         id: m.id,
         productId: m.product_id,
         productName: (m.products as any)?.urun_adi || 'Bilinmeyen Ürün',
@@ -205,79 +186,13 @@ export const stockService = {
         shelfId: m.shelf_id || undefined,
         shelfName: (m.shelves as any)?.name || undefined,
       }));
-    } catch (error) {
-      console.error('Error fetching movements:', error);
+    } catch (err) {
+      console.error('Error fetching movements:', err);
       toast.error('Hareketler yüklenirken hata oluştu');
       return [];
     }
   },
 
-  /**
-   * Get stock summary per shelf for a specific product
-   */
-  async getShelfStockSummary(
-    shelfId?: string
-  ): Promise<
-    {
-      shelfId: string;
-      shelfName: string;
-      totalMevcutStok: number;
-      totalSetStok: number;
-      productCount: number;
-    }[]
-  > {
-    try {
-      const { data: products, error } = await supabase
-        .from('products')
-        .select('id, mevcut_stok, set_stok, raf_konum')
-        .eq('is_deleted', false);
-
-      if (error) throw error;
-
-      const { data: shelves } = await supabase.from('shelves').select('id, name');
-
-      const shelfMap: Record<
-        string,
-        {
-          shelfId: string;
-          shelfName: string;
-          totalMevcutStok: number;
-          totalSetStok: number;
-          productCount: number;
-        }
-      > = {};
-
-      (products || []).forEach((p: any) => {
-        const shelf = (shelves || []).find((s: any) => s.name === p.raf_konum);
-        if (shelf) {
-          if (!shelfMap[shelf.id]) {
-            shelfMap[shelf.id] = {
-              shelfId: shelf.id,
-              shelfName: shelf.name,
-              totalMevcutStok: 0,
-              totalSetStok: 0,
-              productCount: 0,
-            };
-          }
-          shelfMap[shelf.id].totalMevcutStok += p.mevcut_stok;
-          shelfMap[shelf.id].totalSetStok += p.set_stok;
-          shelfMap[shelf.id].productCount += 1;
-        }
-      });
-
-      let results = Object.values(shelfMap);
-      if (shelfId) results = results.filter((s) => s.shelfId === shelfId);
-
-      return results;
-    } catch (error) {
-      console.error('Error getting shelf stock summary:', error);
-      return [];
-    }
-  },
-
-  /**
-   * Get movement statistics for reports
-   */
   async getMovementStats(filters?: {
     dateFrom?: string;
     dateTo?: string;
@@ -294,7 +209,7 @@ export const stockService = {
       let query = supabase
         .from('stock_movements')
         .select('movement_type, quantity, set_quantity')
-        .eq('is_deleted', false);
+        .or('is_deleted.is.null,is_deleted.eq.false'); // ✅ fix
 
       if (filters?.dateFrom) query = query.gte('movement_date', filters.dateFrom);
       if (filters?.dateTo) query = query.lte('movement_date', filters.dateTo);
@@ -305,7 +220,7 @@ export const stockService = {
       if (error) throw error;
 
       const stats = (data || []).reduce(
-        (acc: any, m: any) => {
+        (acc, m) => {
           if (m.movement_type === 'giris') {
             acc.totalIn += m.quantity;
             acc.totalSetIn += m.set_quantity || 0;
@@ -320,8 +235,8 @@ export const stockService = {
       );
 
       return stats;
-    } catch (error) {
-      console.error('Error getting movement stats:', error);
+    } catch (err) {
+      console.error('Error getting movement stats:', err);
       return { totalIn: 0, totalOut: 0, totalSetIn: 0, totalSetOut: 0, movementCount: 0 };
     }
   },
