@@ -1,39 +1,28 @@
-import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { MapPin, Package } from "lucide-react";
-import type { Product } from "@/types/stock";
+import { useEffect, useMemo, useState } from 'react';
+import { MapPin, Package } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Product } from '@/types/stock';
 
 type ShelfRow = { id: string; name: string };
-
-type InventoryRow = {
-  product_id: string;
+type InvRow = {
   shelf_id: string;
+  product_id: string;
   units: number;
   sets: number;
-  products?: {
-    id: string;
-    urun_adi?: string | null;
-    urun_kodu?: string | null;
-    barkod?: string | null;
-  } | null;
-  shelves?: {
-    id: string;
-    name?: string | null;
-  } | null;
+  products: { urun_adi: string; urun_kodu: string; barkod: string | null } | null;
 };
 
 interface LocationViewProps {
-  products: Product[]; // kept for compatibility with your app
+  products: Product[]; // not used anymore, but kept to avoid breaking props
+  movements?: any[];   // not used anymore, but kept to avoid breaking props
   searchQuery: string;
   onViewProduct: (id: string) => void;
 }
 
 export function LocationView({ searchQuery, onViewProduct }: LocationViewProps) {
   const [shelves, setShelves] = useState<ShelfRow[]>([]);
-  const [inventory, setInventory] = useState<InventoryRow[]>([]);
+  const [inventory, setInventory] = useState<InvRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -42,166 +31,158 @@ export function LocationView({ searchQuery, onViewProduct }: LocationViewProps) 
     const load = async () => {
       setLoading(true);
 
-      // 1) fetch ALL shelves (to show empty shelves too)
-      const { data: shelfData, error: shelfErr } = await supabase
-        .from("shelves")
-        .select("id, name")
-        .order("name", { ascending: true });
+      const { data: shelvesData, error: shelvesErr } = await supabase
+        .from('shelves')
+        .select('id, name')
+        .order('name', { ascending: true });
 
-      if (shelfErr) {
-        console.error(shelfErr);
+      if (shelvesErr) {
+        console.error(shelvesErr);
+        if (mounted) setShelves([]);
+      } else {
+        if (mounted) setShelves((shelvesData || []) as ShelfRow[]);
       }
 
-      // 2) fetch shelf_inventory with joins
+      // pull ALL shelf_inventory rows + product info
       const { data: invData, error: invErr } = await supabase
-        .from("shelf_inventory")
-        .select("product_id, shelf_id, units, sets, products(id, urun_adi, urun_kodu, barkod), shelves(id, name)")
-        .order("updated_at", { ascending: false });
+        .from('shelf_inventory')
+        .select('shelf_id, product_id, units, sets, products(urun_adi, urun_kodu, barkod)')
+        .order('updated_at', { ascending: false });
 
       if (invErr) {
         console.error(invErr);
+        if (mounted) setInventory([]);
+      } else {
+        if (mounted) setInventory((invData || []) as InvRow[]);
       }
 
-      if (!mounted) return;
-
-      setShelves((shelfData || []).map((s) => ({ id: s.id, name: s.name })));
-      setInventory((invData || []) as any);
-      setLoading(false);
+      if (mounted) setLoading(false);
     };
 
     load();
-
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, []);
 
-  const q = (searchQuery || "").trim().toLowerCase();
+  const grouped = useMemo(() => {
+    const q = (searchQuery || '').trim().toLowerCase();
 
-  const shelfToItems = useMemo(() => {
-    // filter inventory by search query (product name/code/barcode)
-    const filteredInv = !q
-      ? inventory
-      : inventory.filter((row) => {
-          const p = row.products;
-          const name = (p?.urun_adi || "").toLowerCase();
-          const code = (p?.urun_kodu || "").toLowerCase();
-          const barcode = (p?.barkod || "").toLowerCase();
-          const shelfName = (row.shelves?.name || "").toLowerCase();
-          return (
-            name.includes(q) ||
-            code.includes(q) ||
-            barcode.includes(q) ||
-            shelfName.includes(q)
-          );
-        });
+    // group inventory rows by shelf_id
+    const byShelf = new Map<string, InvRow[]>();
+    for (const row of inventory) {
+      // ignore zero rows
+      const u = row.units || 0;
+      const s = row.sets || 0;
+      if (u === 0 && s === 0) continue;
 
-    const map: Record<string, InventoryRow[]> = {};
-    for (const row of filteredInv) {
-      if (!map[row.shelf_id]) map[row.shelf_id] = [];
-      // show only items that actually exist in that shelf (units/sets > 0)
-      if ((row.units || 0) > 0 || (row.sets || 0) > 0) {
-        map[row.shelf_id].push(row);
-      }
+      const list = byShelf.get(row.shelf_id) || [];
+      list.push(row);
+      byShelf.set(row.shelf_id, list);
     }
-    return map;
-  }, [inventory, q]);
 
-  const visibleShelves = useMemo(() => {
-    // If searching, show only shelves that match OR contain results
-    if (!q) return shelves;
+    // build shelves list (include empty shelves)
+    const result = shelves.map(sh => {
+      const rows = byShelf.get(sh.id) || [];
 
-    return shelves.filter((s) => {
-      const nameMatch = s.name.toLowerCase().includes(q);
-      const hasItems = (shelfToItems[s.id] || []).length > 0;
-      return nameMatch || hasItems;
+      // search filter: shelf name OR product fields
+      let filteredRows = rows;
+      if (q) {
+        const shelfMatch = sh.name.toLowerCase().includes(q);
+        filteredRows = shelfMatch
+          ? rows
+          : rows.filter(r => {
+              const p = r.products;
+              const name = (p?.urun_adi || '').toLowerCase();
+              const code = (p?.urun_kodu || '').toLowerCase();
+              const barcode = (p?.barkod || '').toLowerCase();
+              return name.includes(q) || code.includes(q) || barcode.includes(q);
+            });
+      }
+
+      return {
+        shelfId: sh.id,
+        shelfName: sh.name,
+        rows: filteredRows,
+      };
     });
-  }, [shelves, shelfToItems, q]);
+
+    // hide shelves that don’t match search at all
+    if (q) {
+      return result.filter(s =>
+        s.shelfName.toLowerCase().includes(q) || s.rows.length > 0
+      );
+    }
+
+    return result;
+  }, [shelves, inventory, searchQuery]);
 
   if (loading) {
     return (
-      <div className="py-10 flex items-center justify-center text-muted-foreground">
-        Yükleniyor...
-      </div>
+      <Card>
+        <CardContent className="p-8 text-center text-muted-foreground">
+          Yükleniyor...
+        </CardContent>
+      </Card>
     );
   }
 
   return (
     <div className="space-y-4">
-      {visibleShelves.length === 0 ? (
-        <div className="py-10 text-center text-muted-foreground">
-          Hiç raf bulunamadı.
-        </div>
+      {grouped.length === 0 ? (
+        <Card>
+          <CardContent className="p-8 text-center text-muted-foreground">
+            <MapPin className="w-10 h-10 mx-auto mb-3 opacity-50" />
+            Raf bulunamadı (arama filtresini kontrol edin)
+          </CardContent>
+        </Card>
       ) : (
-        visibleShelves.map((shelf) => {
-          const items = shelfToItems[shelf.id] || [];
-          const totalUnits = items.reduce((a, r) => a + (r.units || 0), 0);
-          const totalSets = items.reduce((a, r) => a + (r.sets || 0), 0);
+        grouped.map((shelf) => (
+          <Card key={shelf.shelfId} className="overflow-hidden">
+            <CardHeader className="py-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-primary" />
+                {shelf.shelfName}
+                <span className="ml-auto text-xs text-muted-foreground flex items-center gap-1">
+                  <Package className="w-3.5 h-3.5" />
+                  {shelf.rows.length}
+                </span>
+              </CardTitle>
+            </CardHeader>
 
-          return (
-            <Card key={shelf.id} className="overflow-hidden">
-              <CardHeader className="py-3">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <MapPin className="w-4 h-4 text-primary" />
-                  {shelf.name}
-                  <div className="ml-auto flex items-center gap-2">
-                    <Badge variant="secondary" className="gap-1">
-                      <Package className="w-3.5 h-3.5" />
-                      {items.length} ürün
-                    </Badge>
-                    <Badge variant="outline">
-                      {totalUnits} adet{totalSets > 0 ? ` • ${totalSets} set` : ""}
-                    </Badge>
-                  </div>
-                </CardTitle>
-              </CardHeader>
-
-              <CardContent className="pb-4">
-                {items.length === 0 ? (
-                  <div className="text-sm text-muted-foreground py-3">
-                    Bu raf boş.
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {items.map((row) => {
-                      const p = row.products;
-                      const name = p?.urun_adi || "Bilinmeyen Ürün";
-                      const code = p?.urun_kodu || "";
-                      const barcode = p?.barkod || "";
-
-                      return (
-                        <div
-                          key={`${row.shelf_id}-${row.product_id}`}
-                          className="flex items-center justify-between gap-3 rounded-lg border p-3"
-                        >
+            <CardContent className="pt-0 pb-3">
+              {shelf.rows.length === 0 ? (
+                <div className="p-3 rounded-lg border text-sm text-muted-foreground">
+                  Bu raf boş
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {shelf.rows.map((r) => {
+                    const p = r.products;
+                    return (
+                      <button
+                        key={`${r.product_id}-${r.shelf_id}`}
+                        onClick={() => onViewProduct(r.product_id)}
+                        className="w-full text-left p-3 rounded-lg border hover:bg-muted/40 transition"
+                      >
+                        <div className="flex items-center justify-between gap-2">
                           <div className="min-w-0">
-                            <div className="font-medium truncate">{name}</div>
+                            <div className="font-medium truncate">{p?.urun_adi || 'Bilinmeyen Ürün'}</div>
                             <div className="text-xs text-muted-foreground truncate">
-                              {code ? `Kod: ${code}` : ""}{code && barcode ? " • " : ""}{barcode ? `Barkod: ${barcode}` : ""}
-                            </div>
-                            <div className="text-xs mt-1">
-                              <Badge variant="outline">{row.units || 0} adet</Badge>
-                              {" "}
-                              <Badge variant="outline">{row.sets || 0} set</Badge>
+                              {p?.urun_kodu || ''}{p?.barkod ? ` • ${p.barkod}` : ''}
                             </div>
                           </div>
-
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => onViewProduct(p?.id || row.product_id)}
-                          >
-                            Aç
-                          </Button>
+                          <div className="text-right text-sm">
+                            <div className="font-semibold">{r.units} adet</div>
+                            <div className="text-xs text-muted-foreground">{r.sets} set</div>
+                          </div>
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          );
-        })
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ))
       )}
     </div>
   );
