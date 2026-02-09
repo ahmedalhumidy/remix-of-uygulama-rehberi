@@ -28,6 +28,10 @@ export interface StockMovementResult {
   shelfName?: string;
 }
 
+/**
+ * Unified Stock Service - Single source of truth for all stock operations
+ * All stock modifications MUST go through this service to ensure consistency
+ */
 export const stockService = {
   async createMovement(input: StockMovementInput): Promise<StockMovementResult | null> {
     // Offline => queue
@@ -72,11 +76,11 @@ export const stockService = {
         return null;
       }
 
-      // Validate stock for exit operations
+      // Validate stock for exit operations (global product stock validation)
       if (input.type === 'cikis') {
         const { data: product } = await supabase
           .from('products')
-          .select('mevcut_stok, set_stok')
+          .select('mevcut_stok, set_stok, urun_adi')
           .eq('id', input.productId)
           .single();
 
@@ -85,14 +89,14 @@ export const stockService = {
             toast.error(`Yetersiz stok: Mevcut ${product.mevcut_stok}, Talep ${input.quantity}`);
             return null;
           }
-          if ((input.setQuantity || 0) > (product.set_stok || 0)) {
-            toast.error(`Yetersiz set stok: Mevcut ${product.set_stok || 0}, Talep ${input.setQuantity || 0}`);
+          if ((input.setQuantity || 0) > product.set_stok) {
+            toast.error(`Yetersiz set stok: Mevcut ${product.set_stok}, Talep ${input.setQuantity}`);
             return null;
           }
         }
       }
 
-      // Insert first (minimal) to avoid join/RLS issues
+      // Insert first (minimal select) to avoid join/RLS issues
       const { data: inserted, error: insertErr } = await supabase
         .from('stock_movements')
         .insert({
@@ -106,36 +110,54 @@ export const stockService = {
           notes: input.note || null,
           created_by: userId,
           shelf_id: input.shelfId || null,
-          is_deleted: false,
+          is_deleted: false, // IMPORTANT: always visible in hareketler/raporlar
         })
         .select('id, product_id, movement_type, quantity, set_quantity, movement_date, movement_time, handled_by, notes, shelf_id')
         .single();
 
       if (insertErr) throw insertErr;
 
-      // Fetch with joins (optional)
-      const { data: joined, error: joinErr } = await supabase
+      // NOTE: We do NOT update products.raf_konum here.
+      // A product can exist on multiple shelves; shelf inventory must be derived from stock_movements.shelf_id.
+
+      // Fetch with joins (best effort)
+      const { data: joined, error: fetchErr } = await supabase
         .from('stock_movements')
         .select('*, products(urun_adi), shelves(name)')
         .eq('id', inserted.id)
         .single();
 
-      // Fallback if join blocked
-      const movement = joinErr ? null : joined;
+      if (fetchErr || !joined) {
+        // Fallback: still return something valid
+        const fallbackResult: StockMovementResult = {
+          id: inserted.id,
+          productId: inserted.product_id,
+          productName: 'Bilinmeyen Ürün',
+          type: inserted.movement_type as 'giris' | 'cikis',
+          quantity: inserted.quantity,
+          setQuantity: inserted.set_quantity || 0,
+          date: inserted.movement_date,
+          time: inserted.movement_time?.slice(0, 5) || undefined,
+          handledBy: inserted.handled_by,
+          note: inserted.notes || undefined,
+          shelfId: inserted.shelf_id || undefined,
+        };
+        return fallbackResult;
+      }
 
       const result: StockMovementResult = {
-        id: inserted.id,
-        productId: inserted.product_id,
-        productName: (movement?.products as any)?.urun_adi || 'Bilinmeyen Ürün',
-        type: inserted.movement_type as 'giris' | 'cikis',
-        quantity: inserted.quantity,
-        setQuantity: inserted.set_quantity || 0,
-        date: inserted.movement_date,
-        time: inserted.movement_time?.slice(0, 5) || undefined,
-        handledBy: inserted.handled_by,
-        note: inserted.notes || undefined,
-        shelfId: inserted.shelf_id || undefined,
-        shelfName: (movement?.shelves as any)?.name || undefined,
+        id: joined.id,
+        productId: joined.product_id,
+        productName: (joined.products as any)?.urun_adi || 'Bilinmeyen Ürün',
+        type: joined.movement_type as 'giris' | 'cikis',
+        quantity: joined.quantity,
+        setQuantity: joined.set_quantity || 0,
+        date: joined.movement_date,
+        time: joined.movement_time?.slice(0, 5) || undefined,
+        handledBy: joined.handled_by,
+        note: joined.notes || undefined,
+        shelfId: joined.shelf_id || undefined,
+        shelfName: (joined.shelves as any)?.name || undefined,
       };
 
       const setInfo = (input.setQuantity || 0) > 0 ? ` + ${input.setQuantity} set` : '';
@@ -163,10 +185,10 @@ export const stockService = {
 
       if (error) throw error;
 
-      return (data || []).map((m: any) => ({
+      return (data || []).map(m => ({
         id: m.id,
         productId: m.product_id,
-        productName: m.products?.urun_adi || 'Bilinmeyen Ürün',
+        productName: (m.products as any)?.urun_adi || 'Bilinmeyen Ürün',
         type: m.movement_type as 'giris' | 'cikis',
         quantity: m.quantity,
         setQuantity: m.set_quantity || 0,
@@ -175,12 +197,60 @@ export const stockService = {
         handledBy: m.handled_by,
         note: m.notes || undefined,
         shelfId: m.shelf_id || undefined,
-        shelfName: m.shelves?.name || undefined,
+        shelfName: (m.shelves as any)?.name || undefined,
       }));
     } catch (err) {
       console.error('Error fetching movements:', err);
       toast.error('Hareketler yüklenirken hata oluştu');
       return [];
+    }
+  },
+
+  async getMovementStats(filters?: {
+    dateFrom?: string;
+    dateTo?: string;
+    productId?: string;
+    shelfId?: string;
+  }): Promise<{
+    totalIn: number;
+    totalOut: number;
+    totalSetIn: number;
+    totalSetOut: number;
+    movementCount: number;
+  }> {
+    try {
+      let query = supabase
+        .from('stock_movements')
+        .select('movement_type, quantity, set_quantity')
+        .or('is_deleted.is.null,is_deleted.eq.false');
+
+      if (filters?.dateFrom) query = query.gte('movement_date', filters.dateFrom);
+      if (filters?.dateTo) query = query.lte('movement_date', filters.dateTo);
+      if (filters?.productId) query = query.eq('product_id', filters.productId);
+      if (filters?.shelfId) query = query.eq('shelf_id', filters.shelfId);
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      const stats = (data || []).reduce(
+        (acc, m) => {
+          if (m.movement_type === 'giris') {
+            acc.totalIn += m.quantity;
+            acc.totalSetIn += m.set_quantity || 0;
+          } else {
+            acc.totalOut += m.quantity;
+            acc.totalSetOut += m.set_quantity || 0;
+          }
+          acc.movementCount += 1;
+          return acc;
+        },
+        { totalIn: 0, totalOut: 0, totalSetIn: 0, totalSetOut: 0, movementCount: 0 }
+      );
+
+      return stats;
+    } catch (err) {
+      console.error('Error getting movement stats:', err);
+      return { totalIn: 0, totalOut: 0, totalSetIn: 0, totalSetOut: 0, movementCount: 0 };
     }
   },
 };
