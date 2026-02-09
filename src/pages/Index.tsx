@@ -1,4 +1,4 @@
-import { useState, lazy, Suspense, useCallback } from "react";
+import { useState, lazy, Suspense } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
 import { Dashboard } from "@/components/dashboard/Dashboard";
@@ -52,7 +52,6 @@ function LazyPageLoader() {
 
 const Index = () => {
   const { signOut, user } = useAuth();
-
   const {
     products,
     loading: productsLoading,
@@ -77,12 +76,6 @@ const Index = () => {
 
   const lowStockCount = products.filter((p) => p.mevcutStok < p.minStok).length;
 
-  // ✅ IMPORTANT: refresh products + movements together
-  const refreshAll = useCallback(() => {
-    refreshProducts();
-    refreshMovements();
-  }, [refreshProducts, refreshMovements]);
-
   const handleAddProduct = () => {
     setSelectedProduct(null);
     setProductModalOpen(true);
@@ -99,13 +92,10 @@ const Index = () => {
     } else {
       await addProduct(productData);
     }
-    // (optional) keep UI fresh after save
-    refreshAll();
   };
 
   const handleDeleteProduct = async (id: string) => {
     await deleteProduct(id);
-    refreshAll();
   };
 
   const handleStockAction = (product: Product, type: "giris" | "cikis") => {
@@ -128,8 +118,9 @@ const Index = () => {
       shelfId,
     });
 
-    // ✅ Refresh BOTH so movements/reports/locations update immediately
-    refreshAll();
+    // Refresh products to get updated stock
+    refreshProducts();
+    refreshMovements();
   };
 
   const handleAddMovement = async (data: {
@@ -143,8 +134,8 @@ const Index = () => {
     shelfId?: string;
   }) => {
     await addMovement(data);
-    // ✅ same fix
-    refreshAll();
+    refreshProducts();
+    refreshMovements();
   };
 
   const handleViewProduct = (id: string) => {
@@ -257,8 +248,10 @@ const Index = () => {
           products={products}
           onProductFound={handleScanProductFound}
           onBarcodeNotFound={handleScanBarcodeNotFound}
-          // ✅ instead of refreshProducts only
-          onStockUpdated={refreshAll}
+          onStockUpdated={() => {
+            refreshProducts();
+            refreshMovements();
+          }}
         />
 
         <main className="p-3 md:p-6 pb-safe">
@@ -309,13 +302,20 @@ const Index = () => {
               searchQuery={searchQuery}
               onAddMovement={handleAddMovement}
               onAddNewProduct={handleAddNewProductFromMovement}
-              // ✅ instead of refreshProducts only
-              onStockUpdated={refreshAll}
+              onStockUpdated={() => {
+                refreshProducts();
+                refreshMovements();
+              }}
             />
           )}
 
           {currentView === "locations" && (
-            <LocationView products={products} searchQuery={searchQuery} onViewProduct={handleViewProduct} />
+            <LocationView
+              products={products}
+              movements={movements}
+              searchQuery={searchQuery}
+              onViewProduct={handleViewProduct}
+            />
           )}
 
           {currentView === "alerts" && (
@@ -382,8 +382,10 @@ const Index = () => {
         onSave={handleSaveProduct}
         product={selectedProduct}
         initialBarcode={pendingBarcode}
-        // ✅ keep everything consistent after modal save/stock actions
-        onStockUpdated={refreshAll}
+        onStockUpdated={() => {
+          refreshProducts();
+          refreshMovements();
+        }}
       />
 
       <StockActionModal
@@ -393,8 +395,8 @@ const Index = () => {
           setSelectedProduct(null);
         }}
         onSuccess={() => {
-          // ✅ was refreshProducts only
-          refreshAll();
+          refreshProducts();
+          refreshMovements();
         }}
         product={selectedProduct}
         actionType={stockActionType}
