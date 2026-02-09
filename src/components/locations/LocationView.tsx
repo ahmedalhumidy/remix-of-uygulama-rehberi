@@ -1,215 +1,208 @@
-import { useMemo } from 'react';
-import { MapPin, Package } from 'lucide-react';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
-import { Product } from '@/types/stock';
-import { useShelves } from '@/hooks/useShelves';
+import { useEffect, useMemo, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { MapPin, Package } from "lucide-react";
+import type { Product } from "@/types/stock";
 
-type MovementLike = {
-  productId: string;
-  productName: string;
-  type: 'giris' | 'cikis';
-  quantity: number;
-  setQuantity: number;
-  shelfId?: string;
-  shelfName?: string;
+type ShelfRow = { id: string; name: string };
+
+type InventoryRow = {
+  product_id: string;
+  shelf_id: string;
+  units: number;
+  sets: number;
+  products?: {
+    id: string;
+    urun_adi?: string | null;
+    urun_kodu?: string | null;
+    barkod?: string | null;
+  } | null;
+  shelves?: {
+    id: string;
+    name?: string | null;
+  } | null;
 };
 
 interface LocationViewProps {
-  products: Product[];
-  movements?: MovementLike[];
+  products: Product[]; // kept for compatibility with your app
   searchQuery: string;
-  onViewProduct?: (id: string) => void;
+  onViewProduct: (id: string) => void;
 }
 
-type ShelfRow = {
-  shelfId: string;
-  shelfName: string;
-  products: Array<{
-    productId: string;
-    productName: string;
-    units: number;
-    sets: number;
-    isPrimary: boolean;
-  }>;
-};
+export function LocationView({ searchQuery, onViewProduct }: LocationViewProps) {
+  const [shelves, setShelves] = useState<ShelfRow[]>([]);
+  const [inventory, setInventory] = useState<InventoryRow[]>([]);
+  const [loading, setLoading] = useState(true);
 
-function norm(s?: string | null) {
-  return (s || '').trim().toLowerCase();
-}
+  useEffect(() => {
+    let mounted = true;
 
-export function LocationView({ products, movements = [], searchQuery, onViewProduct }: LocationViewProps) {
-  const { shelves, loading } = useShelves();
+    const load = async () => {
+      setLoading(true);
 
-  const rows: ShelfRow[] = useMemo(() => {
-    // 1) Base: show current "primary" location from products.rafKonum
-    const byShelfName = new Map<string, ShelfRow>();
+      // 1) fetch ALL shelves (to show empty shelves too)
+      const { data: shelfData, error: shelfErr } = await supabase
+        .from("shelves")
+        .select("id, name")
+        .order("name", { ascending: true });
 
-    const ensure = (shelfId: string, shelfName: string) => {
-      const key = norm(shelfName);
-      if (!byShelfName.has(key)) {
-        byShelfName.set(key, { shelfId, shelfName, products: [] });
+      if (shelfErr) {
+        console.error(shelfErr);
       }
-      return byShelfName.get(key)!;
+
+      // 2) fetch shelf_inventory with joins
+      const { data: invData, error: invErr } = await supabase
+        .from("shelf_inventory")
+        .select("product_id, shelf_id, units, sets, products(id, urun_adi, urun_kodu, barkod), shelves(id, name)")
+        .order("updated_at", { ascending: false });
+
+      if (invErr) {
+        console.error(invErr);
+      }
+
+      if (!mounted) return;
+
+      setShelves((shelfData || []).map((s) => ({ id: s.id, name: s.name })));
+      setInventory((invData || []) as any);
+      setLoading(false);
     };
 
-    // Create rows for ALL shelves (حتى لو فاضية)
-    (shelves || []).forEach(s => ensure(s.id, s.name));
+    load();
 
-    // Primary shelf from product location
-    products.forEach(p => {
-      const shelfName = (p as any).rafKonum || (p as any).raf_konum || '';
-      const shelf = (shelves || []).find(x => norm(x.name) === norm(shelfName));
-      if (!shelf || !shelfName) return;
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
-      const row = ensure(shelf.id, shelf.name);
-      row.products.push({
-        productId: p.id,
-        productName: (p as any).urunAdi || (p as any).urun_adi || 'Ürün',
-        units: (p as any).mevcutStok ?? (p as any).mevcut_stok ?? 0,
-        sets: (p as any).setStok ?? (p as any).set_stok ?? 0,
-        isPrimary: true,
-      });
+  const q = (searchQuery || "").trim().toLowerCase();
+
+  const shelfToItems = useMemo(() => {
+    // filter inventory by search query (product name/code/barcode)
+    const filteredInv = !q
+      ? inventory
+      : inventory.filter((row) => {
+          const p = row.products;
+          const name = (p?.urun_adi || "").toLowerCase();
+          const code = (p?.urun_kodu || "").toLowerCase();
+          const barcode = (p?.barkod || "").toLowerCase();
+          const shelfName = (row.shelves?.name || "").toLowerCase();
+          return (
+            name.includes(q) ||
+            code.includes(q) ||
+            barcode.includes(q) ||
+            shelfName.includes(q)
+          );
+        });
+
+    const map: Record<string, InventoryRow[]> = {};
+    for (const row of filteredInv) {
+      if (!map[row.shelf_id]) map[row.shelf_id] = [];
+      // show only items that actually exist in that shelf (units/sets > 0)
+      if ((row.units || 0) > 0 || (row.sets || 0) > 0) {
+        map[row.shelf_id].push(row);
+      }
+    }
+    return map;
+  }, [inventory, q]);
+
+  const visibleShelves = useMemo(() => {
+    // If searching, show only shelves that match OR contain results
+    if (!q) return shelves;
+
+    return shelves.filter((s) => {
+      const nameMatch = s.name.toLowerCase().includes(q);
+      const hasItems = (shelfToItems[s.id] || []).length > 0;
+      return nameMatch || hasItems;
     });
-
-    // 2) Secondary shelf: from movements shelfName/shelfId (so barcode giriş يظهر بالرف الجديد)
-    // Compute net per shelfName + productId
-    const net = new Map<string, { units: number; sets: number; name: string }>();
-
-    movements.forEach(m => {
-      const shelfName = m.shelfName || '';
-      if (!shelfName) return;
-
-      const sign = m.type === 'giris' ? 1 : -1;
-      const key = `${norm(shelfName)}::${m.productId}`;
-      const cur = net.get(key) || { units: 0, sets: 0, name: m.productName };
-      cur.units += sign * (m.quantity || 0);
-      cur.sets += sign * (m.setQuantity || 0);
-      cur.name = m.productName || cur.name;
-      net.set(key, cur);
-    });
-
-    // Add secondary products only if:
-    // - net positive
-    // - AND this shelf is NOT the primary shelf for that product (حتى ما ننقل القديم)
-    net.forEach((val, key) => {
-      const [shelfKey, productId] = key.split('::');
-      if (!shelfKey || !productId) return;
-      if (val.units <= 0 && val.sets <= 0) return;
-
-      const shelfObj = (shelves || []).find(s => norm(s.name) === shelfKey);
-      if (!shelfObj) return;
-
-      const product = products.find(p => p.id === productId);
-      const primaryName = norm((product as any)?.rafKonum || (product as any)?.raf_konum || '');
-      if (primaryName === shelfKey) return; // already shown as primary
-
-      const row = ensure(shelfObj.id, shelfObj.name);
-      row.products.push({
-        productId,
-        productName: val.name || 'Ürün',
-        units: val.units,
-        sets: val.sets,
-        isPrimary: false,
-      });
-    });
-
-    // Sort products in each shelf
-    const result = Array.from(byShelfName.values()).map(r => ({
-      ...r,
-      products: r.products.sort((a, b) => {
-        if (a.isPrimary !== b.isPrimary) return a.isPrimary ? -1 : 1;
-        return a.productName.localeCompare(b.productName);
-      }),
-    }));
-
-    // Apply search
-    const q = norm(searchQuery);
-    if (!q) return result;
-
-    return result.filter(r => {
-      if (norm(r.shelfName).includes(q)) return true;
-      return r.products.some(p => norm(p.productName).includes(q));
-    });
-  }, [products, movements, shelves, searchQuery]);
+  }, [shelves, shelfToItems, q]);
 
   if (loading) {
     return (
-      <div className="p-4 text-sm text-muted-foreground">
+      <div className="py-10 flex items-center justify-center text-muted-foreground">
         Yükleniyor...
       </div>
     );
   }
 
-  if (rows.length === 0) {
-    return (
-      <div className="p-6">
-        <Card className="p-6 text-center text-muted-foreground">
-          <MapPin className="w-10 h-10 mx-auto mb-3 opacity-40" />
-          Raf bulunamadı (arama filtresini kontrol edin)
-        </Card>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-3">
-      {rows.map(row => {
-        const count = row.products.length;
-        return (
-          <Card key={row.shelfId} className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-primary" />
-                <div className="font-semibold">{row.shelfName}</div>
-              </div>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Package className="w-4 h-4" />
-                {count}
-              </div>
-            </div>
+    <div className="space-y-4">
+      {visibleShelves.length === 0 ? (
+        <div className="py-10 text-center text-muted-foreground">
+          Hiç raf bulunamadı.
+        </div>
+      ) : (
+        visibleShelves.map((shelf) => {
+          const items = shelfToItems[shelf.id] || [];
+          const totalUnits = items.reduce((a, r) => a + (r.units || 0), 0);
+          const totalSets = items.reduce((a, r) => a + (r.sets || 0), 0);
 
-            {count === 0 ? (
-              <div className="mt-3 text-sm text-muted-foreground">
-                Bu raf boş
-              </div>
-            ) : (
-              <div className="mt-3 space-y-2">
-                {row.products.slice(0, 8).map(p => (
-                  <button
-                    key={`${row.shelfId}-${p.productId}-${p.isPrimary ? 'p' : 's'}`}
-                    onClick={() => onViewProduct?.(p.productId)}
-                    className={cn(
-                      'w-full flex items-center justify-between rounded-lg border p-2 text-left hover:bg-muted/40 transition',
-                      !p.isPrimary && 'border-dashed'
-                    )}
-                  >
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-medium">{p.productName}</div>
-                      {!p.isPrimary && (
-                        <div className="text-[11px] text-muted-foreground">
-                          Bu raf için ek giriş (barcode) olarak gösteriliyor
+          return (
+            <Card key={shelf.id} className="overflow-hidden">
+              <CardHeader className="py-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <MapPin className="w-4 h-4 text-primary" />
+                  {shelf.name}
+                  <div className="ml-auto flex items-center gap-2">
+                    <Badge variant="secondary" className="gap-1">
+                      <Package className="w-3.5 h-3.5" />
+                      {items.length} ürün
+                    </Badge>
+                    <Badge variant="outline">
+                      {totalUnits} adet{totalSets > 0 ? ` • ${totalSets} set` : ""}
+                    </Badge>
+                  </div>
+                </CardTitle>
+              </CardHeader>
+
+              <CardContent className="pb-4">
+                {items.length === 0 ? (
+                  <div className="text-sm text-muted-foreground py-3">
+                    Bu raf boş.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {items.map((row) => {
+                      const p = row.products;
+                      const name = p?.urun_adi || "Bilinmeyen Ürün";
+                      const code = p?.urun_kodu || "";
+                      const barcode = p?.barkod || "";
+
+                      return (
+                        <div
+                          key={`${row.shelf_id}-${row.product_id}`}
+                          className="flex items-center justify-between gap-3 rounded-lg border p-3"
+                        >
+                          <div className="min-w-0">
+                            <div className="font-medium truncate">{name}</div>
+                            <div className="text-xs text-muted-foreground truncate">
+                              {code ? `Kod: ${code}` : ""}{code && barcode ? " • " : ""}{barcode ? `Barkod: ${barcode}` : ""}
+                            </div>
+                            <div className="text-xs mt-1">
+                              <Badge variant="outline">{row.units || 0} adet</Badge>
+                              {" "}
+                              <Badge variant="outline">{row.sets || 0} set</Badge>
+                            </div>
+                          </div>
+
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => onViewProduct(p?.id || row.product_id)}
+                          >
+                            Aç
+                          </Button>
                         </div>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <Badge variant="outline">{p.units} adet</Badge>
-                      <Badge variant="outline">{p.sets} set</Badge>
-                    </div>
-                  </button>
-                ))}
-
-                {count > 8 && (
-                  <div className="text-xs text-muted-foreground mt-1">
-                    + {count - 8} ürün daha...
+                      );
+                    })}
                   </div>
                 )}
-              </div>
-            )}
-          </Card>
-        );
-      })}
+              </CardContent>
+            </Card>
+          );
+        })
+      )}
     </div>
   );
 }
