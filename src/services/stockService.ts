@@ -72,27 +72,27 @@ export const stockService = {
         return null;
       }
 
-      // خروج: تحقق من المخزون الإجمالي (products totals)
+      // çıkış: check total stock (global) - optional safety
       if (input.type === 'cikis') {
         const { data: product } = await supabase
           .from('products')
-          .select('mevcut_stok, set_stok, urun_adi')
+          .select('mevcut_stok, set_stok')
           .eq('id', input.productId)
           .single();
 
         if (product) {
-          if (input.quantity > product.mevcut_stok) {
+          if (input.quantity > (product.mevcut_stok || 0)) {
             toast.error(`Yetersiz stok: Mevcut ${product.mevcut_stok}, Talep ${input.quantity}`);
             return null;
           }
           if ((input.setQuantity || 0) > (product.set_stok || 0)) {
-            toast.error(`Yetersiz set stok: Mevcut ${product.set_stok || 0}, Talep ${input.setQuantity || 0}`);
+            toast.error(`Yetersiz set stok: Mevcut ${product.set_stok}, Talep ${input.setQuantity}`);
             return null;
           }
         }
       }
 
-      // ✅ Insert movement ONCE (and always is_deleted:false)
+      // ✅ Insert minimal first (safe), then fetch join
       const { data: inserted, error: insertErr } = await supabase
         .from('stock_movements')
         .insert({
@@ -113,26 +113,29 @@ export const stockService = {
 
       if (insertErr) throw insertErr;
 
-      // ✅ Fetch with joins (best effort)
-      const { data: fullRow } = await supabase
+      // ✅ Now fetch with joins
+      const { data: full, error: fetchErr } = await supabase
         .from('stock_movements')
         .select('id, product_id, movement_type, quantity, set_quantity, movement_date, movement_time, handled_by, notes, shelf_id, products(urun_adi), shelves(name)')
         .eq('id', inserted.id)
         .single();
 
+      // Even if join fails, movement is inserted (and trigger updates shelf_inventory)
+      const row = fetchErr || !full ? inserted : full;
+
       const result: StockMovementResult = {
-        id: inserted.id,
-        productId: inserted.product_id,
-        productName: (fullRow?.products as any)?.urun_adi || 'Bilinmeyen Ürün',
-        type: inserted.movement_type as 'giris' | 'cikis',
-        quantity: inserted.quantity,
-        setQuantity: inserted.set_quantity || 0,
-        date: inserted.movement_date,
-        time: inserted.movement_time?.slice(0, 5) || undefined,
-        handledBy: inserted.handled_by,
-        note: inserted.notes || undefined,
-        shelfId: inserted.shelf_id || undefined,
-        shelfName: (fullRow?.shelves as any)?.name || undefined,
+        id: row.id,
+        productId: row.product_id,
+        productName: (row as any)?.products?.urun_adi || 'Bilinmeyen Ürün',
+        type: row.movement_type as 'giris' | 'cikis',
+        quantity: row.quantity,
+        setQuantity: row.set_quantity || 0,
+        date: row.movement_date,
+        time: row.movement_time?.slice(0, 5) || undefined,
+        handledBy: row.handled_by,
+        note: row.notes || undefined,
+        shelfId: row.shelf_id || undefined,
+        shelfName: (row as any)?.shelves?.name || undefined,
       };
 
       const setInfo = (input.setQuantity || 0) > 0 ? ` + ${input.setQuantity} set` : '';
@@ -160,7 +163,7 @@ export const stockService = {
 
       if (error) throw error;
 
-      return (data || []).map((m: any) => ({
+      return (data || []).map(m => ({
         id: m.id,
         productId: m.product_id,
         productName: (m.products as any)?.urun_adi || 'Bilinmeyen Ürün',
