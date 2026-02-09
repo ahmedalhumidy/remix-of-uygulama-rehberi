@@ -311,11 +311,11 @@ const Index = () => {
 
           {currentView === "locations" && (
             <LocationView
-              products={products}
-              movements={movements}
-              searchQuery={searchQuery}
-              onViewProduct={handleViewProduct}
-            />
+  products={products}
+  movements={movements}
+  searchQuery={searchQuery}
+  onViewProduct={handleViewProduct}
+/>
           )}
 
           {currentView === "alerts" && (
