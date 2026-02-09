@@ -72,48 +72,77 @@ export const stockService = {
         return null;
       }
 
-      // خروج: تحقق من المخزون
-      if (input.type === 'cikis') {
-        const { data: product } = await supabase
-          .from('products')
-          .select('mevcut_stok, set_stok, urun_adi')
-          .eq('id', input.productId)
-          .single();
+      // ✅ Always fetch current stock (we need it to update products)
+      const { data: productRow, error: productErr } = await supabase
+        .from('products')
+        .select('id, urun_adi, mevcut_stok, set_stok')
+        .eq('id', input.productId)
+        .single();
 
-        if (product) {
-          if (input.quantity > product.mevcut_stok) {
-            toast.error(`Yetersiz stok: Mevcut ${product.mevcut_stok}, Talep ${input.quantity}`);
-            return null;
-          }
-          if ((input.setQuantity || 0) > product.set_stok) {
-            toast.error(`Yetersiz set stok: Mevcut ${product.set_stok}, Talep ${input.setQuantity || 0}`);
-            return null;
-          }
+      if (productErr || !productRow) {
+        toast.error('Ürün bulunamadı');
+        return null;
+      }
+
+      const qty = Number(input.quantity || 0);
+      const setQty = Number(input.setQuantity || 0);
+
+      // ✅ Validate exit operations (prevent negative)
+      if (input.type === 'cikis') {
+        if (qty > Number(productRow.mevcut_stok || 0)) {
+          toast.error(`Yetersiz stok: Mevcut ${productRow.mevcut_stok}, Talep ${qty}`);
+          return null;
+        }
+        if (setQty > Number(productRow.set_stok || 0)) {
+          toast.error(`Yetersiz set stok: Mevcut ${productRow.set_stok}, Talep ${setQty}`);
+          return null;
         }
       }
 
-      // ✅ Insert الحركة (بدون joins أولاً لتجنب مشاكل RLS)
+      // ✅ 1) Insert movement first (no join) => always visible
       const { data: inserted, error: insertErr } = await supabase
         .from('stock_movements')
         .insert({
           product_id: input.productId,
           movement_type: input.type,
-          quantity: input.quantity,
-          set_quantity: input.setQuantity || 0,
+          quantity: qty,
+          set_quantity: setQty,
           movement_date: input.date,
           movement_time: input.time,
           handled_by: profile.full_name,
           notes: input.note || null,
           created_by: userId,
           shelf_id: input.shelfId || null,
-          is_deleted: false, // ✅ مهم لظهور الحركة
+          is_deleted: false,
         })
         .select('id, product_id, movement_type, quantity, set_quantity, movement_date, movement_time, handled_by, notes, shelf_id')
         .single();
 
       if (insertErr) throw insertErr;
 
-      // ✅ Sync product raf_konum على giriş فقط
+      // ✅ 2) Update product stock locally (no trigger dependency)
+      const deltaUnits = input.type === 'giris' ? qty : -qty;
+      const deltaSets = input.type === 'giris' ? setQty : -setQty;
+
+      const nextUnits = Number(productRow.mevcut_stok || 0) + deltaUnits;
+      const nextSets = Number(productRow.set_stok || 0) + deltaSets;
+
+      const { error: updErr } = await supabase
+        .from('products')
+        .update({
+          mevcut_stok: nextUnits,
+          set_stok: nextSets,
+        })
+        .eq('id', input.productId);
+
+      if (updErr) {
+        // الحركة انكتبت، بس المخزون ما اتحدث => لازم نعرف السبب
+        console.error('Product stock update failed:', updErr);
+        toast.error('Hareket kaydedildi ama stok güncellenemedi (yetki/RLS olabilir)');
+        // ما منرجع null لأن الحركة انحفظت فعلاً
+      }
+
+      // ✅ 3) Sync raf_konum فقط عند giriş ومع shelfId
       if (input.type === 'giris' && input.shelfId) {
         const { data: shelfRow } = await supabase
           .from('shelves')
@@ -122,14 +151,16 @@ export const stockService = {
           .single();
 
         if (shelfRow?.name) {
-          await supabase
+          const { error: locErr } = await supabase
             .from('products')
             .update({ raf_konum: shelfRow.name })
             .eq('id', input.productId);
+
+          if (locErr) console.warn('raf_konum update failed:', locErr);
         }
       }
 
-      // ✅ Fetch مع joins (للعرض)
+      // ✅ 4) Fetch joins for UI (best effort)
       const { data: fullRow } = await supabase
         .from('stock_movements')
         .select('id, product_id, movement_type, quantity, set_quantity, movement_date, movement_time, handled_by, notes, shelf_id, products(urun_adi), shelves(name)')
@@ -139,7 +170,7 @@ export const stockService = {
       const result: StockMovementResult = {
         id: inserted.id,
         productId: inserted.product_id,
-        productName: (fullRow as any)?.products?.urun_adi || 'Bilinmeyen Ürün',
+        productName: (fullRow as any)?.products?.urun_adi || productRow.urun_adi || 'Bilinmeyen Ürün',
         type: inserted.movement_type as 'giris' | 'cikis',
         quantity: inserted.quantity,
         setQuantity: inserted.set_quantity || 0,
@@ -151,11 +182,11 @@ export const stockService = {
         shelfName: (fullRow as any)?.shelves?.name || undefined,
       };
 
-      const setInfo = (input.setQuantity || 0) > 0 ? ` + ${input.setQuantity} set` : '';
+      const setInfo = setQty > 0 ? ` + ${setQty} set` : '';
       toast.success(
         input.type === 'giris'
-          ? `${input.quantity} adet${setInfo} stok girişi yapıldı`
-          : `${input.quantity} adet${setInfo} stok çıkışı yapıldı`
+          ? `${qty} adet${setInfo} stok girişi yapıldı`
+          : `${qty} adet${setInfo} stok çıkışı yapıldı`
       );
 
       return result;
@@ -168,7 +199,6 @@ export const stockService = {
 
   async fetchMovements(): Promise<StockMovementResult[]> {
     try {
-      // ✅ include is_deleted NULL أو FALSE
       const { data, error } = await supabase
         .from('stock_movements')
         .select('id, product_id, movement_type, quantity, set_quantity, movement_date, movement_time, handled_by, notes, shelf_id, products(urun_adi), shelves(name), is_deleted, created_at')
