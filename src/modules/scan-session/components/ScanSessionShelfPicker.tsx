@@ -51,14 +51,8 @@ export function ScanSessionShelfPicker({ isOpen, onClose, onSelectShelf }: ScanS
 
   const handleCreateShelf = async () => {
     const name = newShelfName.trim();
-    if (!name) {
-      toast.error('Raf adı boş olamaz');
-      return;
-    }
-    if (normalizedExisting.has(name.toLowerCase())) {
-      toast.error('Bu raf zaten mevcut');
-      return;
-    }
+    if (!name) return toast.error('Raf adı boş olamaz');
+    if (normalizedExisting.has(name.toLowerCase())) return toast.error('Bu raf zaten mevcut');
 
     setCreating(true);
     try {
@@ -71,8 +65,8 @@ export function ScanSessionShelfPicker({ isOpen, onClose, onSelectShelf }: ScanS
       if (error) throw error;
 
       toast.success('Yeni raf eklendi');
-      // select newly created shelf immediately
       onSelectShelf(data.id, data.name);
+      onClose();
     } catch (e: any) {
       console.error(e);
       toast.error(e?.message || 'Raf eklenemedi');
