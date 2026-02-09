@@ -72,7 +72,7 @@ export const stockService = {
         return null;
       }
 
-      // خروج: تحقق من المخزون
+      // خروج: تحقق من المخزون الإجمالي (products totals)
       if (input.type === 'cikis') {
         const { data: product } = await supabase
           .from('products')
@@ -85,14 +85,14 @@ export const stockService = {
             toast.error(`Yetersiz stok: Mevcut ${product.mevcut_stok}, Talep ${input.quantity}`);
             return null;
           }
-          if ((input.setQuantity || 0) > product.set_stok) {
-            toast.error(`Yetersiz set stok: Mevcut ${product.set_stok}, Talep ${input.setQuantity}`);
+          if ((input.setQuantity || 0) > (product.set_stok || 0)) {
+            toast.error(`Yetersiz set stok: Mevcut ${product.set_stok || 0}, Talep ${input.setQuantity || 0}`);
             return null;
           }
         }
       }
 
-      // ✅ Insert first (minimal select) to avoid join/RLS issues
+      // ✅ Insert movement ONCE (and always is_deleted:false)
       const { data: inserted, error: insertErr } = await supabase
         .from('stock_movements')
         .insert({
@@ -113,21 +113,17 @@ export const stockService = {
 
       if (insertErr) throw insertErr;
 
-      // ✅ Now fetch with joins (safe)
-      const { data: newMovement, error: fetchErr } = await supabase
+      // ✅ Fetch with joins (best effort)
+      const { data: fullRow } = await supabase
         .from('stock_movements')
-        .select('*, products(urun_adi), shelves(name)')
+        .select('id, product_id, movement_type, quantity, set_quantity, movement_date, movement_time, handled_by, notes, shelf_id, products(urun_adi), shelves(name)')
         .eq('id', inserted.id)
         .single();
-
-      // ❌ IMPORTANT: لا تعمل تحديث raf_konum هون
-      // لأن هيك عم "ينقل" المنتج من الرف القديم للجديد.
-      // الرف الجديد لازم ينحفظ بالحركة فقط.
 
       const result: StockMovementResult = {
         id: inserted.id,
         productId: inserted.product_id,
-        productName: (newMovement?.products as any)?.urun_adi || 'Bilinmeyen Ürün',
+        productName: (fullRow?.products as any)?.urun_adi || 'Bilinmeyen Ürün',
         type: inserted.movement_type as 'giris' | 'cikis',
         quantity: inserted.quantity,
         setQuantity: inserted.set_quantity || 0,
@@ -136,7 +132,7 @@ export const stockService = {
         handledBy: inserted.handled_by,
         note: inserted.notes || undefined,
         shelfId: inserted.shelf_id || undefined,
-        shelfName: (newMovement?.shelves as any)?.name || undefined,
+        shelfName: (fullRow?.shelves as any)?.name || undefined,
       };
 
       const setInfo = (input.setQuantity || 0) > 0 ? ` + ${input.setQuantity} set` : '';
@@ -164,7 +160,7 @@ export const stockService = {
 
       if (error) throw error;
 
-      return (data || []).map(m => ({
+      return (data || []).map((m: any) => ({
         id: m.id,
         productId: m.product_id,
         productName: (m.products as any)?.urun_adi || 'Bilinmeyen Ürün',
