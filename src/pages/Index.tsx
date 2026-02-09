@@ -1,4 +1,4 @@
-import { useState, lazy, Suspense } from "react";
+import { useState, lazy, Suspense, useCallback } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
 import { Dashboard } from "@/components/dashboard/Dashboard";
@@ -22,8 +22,12 @@ import { toast } from "sonner";
 const UserManagement = lazy(() =>
   import("@/components/users/UserManagement").then((m) => ({ default: m.UserManagement })),
 );
-const AuditLogList = lazy(() => import("@/components/users/AuditLogList").then((m) => ({ default: m.AuditLogList })));
-const ReportsPage = lazy(() => import("@/components/reports/ReportsPage").then((m) => ({ default: m.ReportsPage })));
+const AuditLogList = lazy(() =>
+  import("@/components/users/AuditLogList").then((m) => ({ default: m.AuditLogList })),
+);
+const ReportsPage = lazy(() =>
+  import("@/components/reports/ReportsPage").then((m) => ({ default: m.ReportsPage })),
+);
 const ProfileSettings = lazy(() =>
   import("@/components/profile/ProfileSettings").then((m) => ({ default: m.ProfileSettings })),
 );
@@ -58,12 +62,7 @@ const Index = () => {
     refreshProducts,
   } = useProducts();
 
-  const {
-    movements,
-    loading: movementsLoading,
-    addMovement,
-    refreshMovements,
-  } = useMovements(products);
+  const { movements, loading: movementsLoading, addMovement, refreshMovements } = useMovements(products);
 
   const { currentView, setCurrentView } = useCurrentView();
   const [searchQuery, setSearchQuery] = useState("");
@@ -78,11 +77,11 @@ const Index = () => {
 
   const lowStockCount = products.filter((p) => p.mevcutStok < p.minStok).length;
 
-  // ✅ IMPORTANT: single function to refresh BOTH products + movements
-  const handleStockUpdated = () => {
+  // ✅ IMPORTANT: refresh products + movements together
+  const refreshAll = useCallback(() => {
     refreshProducts();
     refreshMovements();
-  };
+  }, [refreshProducts, refreshMovements]);
 
   const handleAddProduct = () => {
     setSelectedProduct(null);
@@ -100,13 +99,13 @@ const Index = () => {
     } else {
       await addProduct(productData);
     }
-    // optional refresh
-    handleStockUpdated();
+    // (optional) keep UI fresh after save
+    refreshAll();
   };
 
   const handleDeleteProduct = async (id: string) => {
     await deleteProduct(id);
-    handleStockUpdated();
+    refreshAll();
   };
 
   const handleStockAction = (product: Product, type: "giris" | "cikis") => {
@@ -129,8 +128,8 @@ const Index = () => {
       shelfId,
     });
 
-    // ✅ refresh BOTH so Hareketler + Raporlar update immediately
-    handleStockUpdated();
+    // ✅ Refresh BOTH so movements/reports/locations update immediately
+    refreshAll();
   };
 
   const handleAddMovement = async (data: {
@@ -144,7 +143,8 @@ const Index = () => {
     shelfId?: string;
   }) => {
     await addMovement(data);
-    handleStockUpdated();
+    // ✅ same fix
+    refreshAll();
   };
 
   const handleViewProduct = (id: string) => {
@@ -257,11 +257,12 @@ const Index = () => {
           products={products}
           onProductFound={handleScanProductFound}
           onBarcodeNotFound={handleScanBarcodeNotFound}
-          // ✅ IMPORTANT: scan session & barcode actions will update BOTH
-          onStockUpdated={handleStockUpdated}
+          // ✅ instead of refreshProducts only
+          onStockUpdated={refreshAll}
         />
 
         <main className="p-3 md:p-6 pb-safe">
+          {/* Page Title with Sign Out - Hidden on dashboard to avoid duplication */}
           {currentView !== "dashboard" && (
             <div className="mb-4 md:mb-6 flex items-center justify-between">
               <div>
@@ -275,6 +276,7 @@ const Index = () => {
             </div>
           )}
 
+          {/* Dashboard has its own header, just show sign out */}
           {currentView === "dashboard" && (
             <div className="flex justify-end mb-3 md:mb-4">
               <Button variant="outline" size="sm" onClick={handleSignOut} className="h-8 md:h-9 text-xs md:text-sm">
@@ -284,6 +286,7 @@ const Index = () => {
             </div>
           )}
 
+          {/* Content */}
           {currentView === "dashboard" && (
             <Dashboard products={products} movements={movements} onViewProduct={handleViewProduct} />
           )}
@@ -306,8 +309,8 @@ const Index = () => {
               searchQuery={searchQuery}
               onAddMovement={handleAddMovement}
               onAddNewProduct={handleAddNewProductFromMovement}
-              // ✅ also refresh BOTH after movement page actions
-              onStockUpdated={handleStockUpdated}
+              // ✅ instead of refreshProducts only
+              onStockUpdated={refreshAll}
             />
           )}
 
@@ -379,8 +382,8 @@ const Index = () => {
         onSave={handleSaveProduct}
         product={selectedProduct}
         initialBarcode={pendingBarcode}
-        // ✅ keep everything in sync after save from modal
-        onStockUpdated={handleStockUpdated}
+        // ✅ keep everything consistent after modal save/stock actions
+        onStockUpdated={refreshAll}
       />
 
       <StockActionModal
@@ -390,8 +393,8 @@ const Index = () => {
           setSelectedProduct(null);
         }}
         onSuccess={() => {
-          // ✅ make sure movements update too
-          handleStockUpdated();
+          // ✅ was refreshProducts only
+          refreshAll();
         }}
         product={selectedProduct}
         actionType={stockActionType}
