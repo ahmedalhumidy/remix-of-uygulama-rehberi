@@ -22,12 +22,8 @@ import { toast } from "sonner";
 const UserManagement = lazy(() =>
   import("@/components/users/UserManagement").then((m) => ({ default: m.UserManagement })),
 );
-const AuditLogList = lazy(() =>
-  import("@/components/users/AuditLogList").then((m) => ({ default: m.AuditLogList })),
-);
-const ReportsPage = lazy(() =>
-  import("@/components/reports/ReportsPage").then((m) => ({ default: m.ReportsPage })),
-);
+const AuditLogList = lazy(() => import("@/components/users/AuditLogList").then((m) => ({ default: m.AuditLogList })));
+const ReportsPage = lazy(() => import("@/components/reports/ReportsPage").then((m) => ({ default: m.ReportsPage })));
 const ProfileSettings = lazy(() =>
   import("@/components/profile/ProfileSettings").then((m) => ({ default: m.ProfileSettings })),
 );
@@ -52,6 +48,7 @@ function LazyPageLoader() {
 
 const Index = () => {
   const { signOut, user } = useAuth();
+
   const {
     products,
     loading: productsLoading,
@@ -61,18 +58,16 @@ const Index = () => {
     refreshProducts,
   } = useProducts();
 
-  const { movements, loading: movementsLoading, addMovement, refreshMovements } =
-    useMovements(products);
+  const {
+    movements,
+    loading: movementsLoading,
+    addMovement,
+    refreshMovements,
+  } = useMovements(products);
 
   const { currentView, setCurrentView } = useCurrentView();
   const [searchQuery, setSearchQuery] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  // ✅ One function = refresh everything
-  const handleStockUpdated = async () => {
-    await refreshProducts();
-    await refreshMovements();
-  };
 
   // Modals
   const [productModalOpen, setProductModalOpen] = useState(false);
@@ -82,6 +77,12 @@ const Index = () => {
   const [pendingBarcode, setPendingBarcode] = useState<string | undefined>();
 
   const lowStockCount = products.filter((p) => p.mevcutStok < p.minStok).length;
+
+  // ✅ IMPORTANT: single function to refresh BOTH products + movements
+  const handleStockUpdated = () => {
+    refreshProducts();
+    refreshMovements();
+  };
 
   const handleAddProduct = () => {
     setSelectedProduct(null);
@@ -99,13 +100,13 @@ const Index = () => {
     } else {
       await addProduct(productData);
     }
-    // after save, refresh
-    await handleStockUpdated();
+    // optional refresh
+    handleStockUpdated();
   };
 
   const handleDeleteProduct = async (id: string) => {
     await deleteProduct(id);
-    await handleStockUpdated();
+    handleStockUpdated();
   };
 
   const handleStockAction = (product: Product, type: "giris" | "cikis") => {
@@ -114,12 +115,7 @@ const Index = () => {
     setStockActionModalOpen(true);
   };
 
-  const handleStockActionConfirm = async (
-    quantity: number,
-    setQuantity: number,
-    note: string,
-    shelfId?: string
-  ) => {
+  const handleStockActionConfirm = async (quantity: number, setQuantity: number, note: string, shelfId?: string) => {
     if (!selectedProduct) return;
 
     await addMovement({
@@ -133,8 +129,8 @@ const Index = () => {
       shelfId,
     });
 
-    // ✅ refresh both
-    await handleStockUpdated();
+    // ✅ refresh BOTH so Hareketler + Raporlar update immediately
+    handleStockUpdated();
   };
 
   const handleAddMovement = async (data: {
@@ -148,7 +144,7 @@ const Index = () => {
     shelfId?: string;
   }) => {
     await addMovement(data);
-    await handleStockUpdated();
+    handleStockUpdated();
   };
 
   const handleViewProduct = (id: string) => {
@@ -261,7 +257,7 @@ const Index = () => {
           products={products}
           onProductFound={handleScanProductFound}
           onBarcodeNotFound={handleScanBarcodeNotFound}
-          // ✅ refresh both
+          // ✅ IMPORTANT: scan session & barcode actions will update BOTH
           onStockUpdated={handleStockUpdated}
         />
 
@@ -310,7 +306,7 @@ const Index = () => {
               searchQuery={searchQuery}
               onAddMovement={handleAddMovement}
               onAddNewProduct={handleAddNewProductFromMovement}
-              // ✅ refresh both
+              // ✅ also refresh BOTH after movement page actions
               onStockUpdated={handleStockUpdated}
             />
           )}
@@ -383,7 +379,7 @@ const Index = () => {
         onSave={handleSaveProduct}
         product={selectedProduct}
         initialBarcode={pendingBarcode}
-        // ✅ refresh both
+        // ✅ keep everything in sync after save from modal
         onStockUpdated={handleStockUpdated}
       />
 
@@ -394,7 +390,7 @@ const Index = () => {
           setSelectedProduct(null);
         }}
         onSuccess={() => {
-          // ✅ refresh both
+          // ✅ make sure movements update too
           handleStockUpdated();
         }}
         product={selectedProduct}
