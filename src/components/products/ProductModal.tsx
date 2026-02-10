@@ -1,20 +1,16 @@
-import { useState, useEffect, useRef } from 'react';
-import { Product } from '@/types/stock';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { ShelfSelector } from '@/components/shelves/ShelfSelector';
-import { useShelves, Shelf } from '@/hooks/useShelves';
-import { QuickStockInput } from '@/components/stock/QuickStockInput';
-import { CustomFieldsSection } from '@/modules/dynamic-forms/components/CustomFieldsSection';
-import type { CustomFieldValuesMap } from '@/modules/dynamic-forms/types';
+import { useState, useEffect, useRef } from "react";
+import { Product } from "@/types/stock";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ShelfSelector } from "@/components/shelves/ShelfSelector";
+import { useShelves, Shelf } from "@/hooks/useShelves";
+import { QuickStockInput } from "@/components/stock/QuickStockInput";
+import { CustomFieldsSection } from "@/modules/dynamic-forms/components/CustomFieldsSection";
+import type { CustomFieldValuesMap } from "@/modules/dynamic-forms/types";
+import { supabase } from "@/integrations/supabase/client";
 
 type EnrichedProduct = Product & {
   shelfSummary?: string;
@@ -24,13 +20,20 @@ type EnrichedProduct = Product & {
 interface ProductModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (product: Omit<Product, 'id'> | Product) => void;
+  onSave: (product: Omit<Product, "id"> | Product) => void;
   product?: Product | null;
   initialBarcode?: string;
   onStockUpdated?: () => void;
 }
 
-export function ProductModal({ isOpen, onClose, onSave, product, initialBarcode, onStockUpdated }: ProductModalProps) {
+export function ProductModal({
+  isOpen,
+  onClose,
+  onSave,
+  product,
+  initialBarcode,
+  onStockUpdated,
+}: ProductModalProps) {
   const { shelves, addShelf } = useShelves();
   const [selectedShelfId, setSelectedShelfId] = useState<string | undefined>();
 
@@ -39,56 +42,80 @@ export function ProductModal({ isOpen, onClose, onSave, product, initialBarcode,
     save: (entityId: string) => Promise<boolean>;
   } | null>(null);
 
+  // ✅ Real totals from shelf_inventory
+  const [totals, setTotals] = useState({ totalUnits: 0, totalSets: 0 });
+
+  const loadTotals = async (productId: string) => {
+    const { data, error } = await supabase
+      .from("shelf_inventory")
+      .select("units, sets")
+      .eq("product_id", productId);
+
+    if (error) {
+      console.error("Failed to load shelf totals", error);
+      setTotals({ totalUnits: 0, totalSets: 0 });
+      return;
+    }
+
+    const totalUnits = (data ?? []).reduce((sum: number, r: any) => sum + (r.units ?? 0), 0);
+    const totalSets = (data ?? []).reduce((sum: number, r: any) => sum + (r.sets ?? 0), 0);
+
+    setTotals({ totalUnits, totalSets });
+  };
+
   const [formData, setFormData] = useState({
-    urunKodu: '',
-    urunAdi: '',
-    rafKonum: '',
-    barkod: '',
-    mevcutStok: 0,
-    setStok: 0,
+    urunKodu: "",
+    urunAdi: "",
+    rafKonum: "",
+    barkod: "",
+    mevcutStok: 0, // only used for NEW product initial stock
+    setStok: 0, // only used for NEW product initial stock
     minStok: 5,
-    not: '',
+    not: "",
   });
 
   useEffect(() => {
-  if (product) {
-    // IMPORTANT:
-    // - products.rafKonum is now a *display* string (may contain multiple shelves)
-    // - defaultRafKonum keeps the product's default shelf (single)
-    const defaultRaf = (product as any).defaultRafKonum || product.rafKonum;
+    // When modal opens / product changes, hydrate form
+    if (product) {
+      // IMPORTANT:
+      // - products.rafKonum is now a *display* string (may contain multiple shelves)
+      // - defaultRafKonum keeps the product's default shelf (single)
+      const defaultRaf = (product as any).defaultRafKonum || (product as any).rafKonum || "";
 
-    setFormData({
-      urunKodu: product.urunKodu,
-      urunAdi: product.urunAdi,
-      rafKonum: defaultRaf,
-      barkod: product.barkod || '',
-      mevcutStok: product.mevcutStok,
-      setStok: product.setStok || 0,
-      minStok: product.minStok,
-      not: product.not || '',
-    });
+      setFormData({
+        urunKodu: (product as any).urunKodu ?? "",
+        urunAdi: (product as any).urunAdi ?? "",
+        rafKonum: defaultRaf,
+        barkod: (product as any).barkod || "",
+        // ✅ Do NOT use old columns for display
+        // For existing products, real totals come from shelf_inventory (totals state)
+        mevcutStok: 0,
+        setStok: 0,
+        minStok: (product as any).minStok ?? 5,
+        not: (product as any).not || "",
+      });
 
-    const matchingShelf = shelves.find(s => s.name === defaultRaf);
-    setSelectedShelfId(matchingShelf?.id);
-  } else {
-    ...
-  }
-}, [product, isOpen, initialBarcode, shelves]);
-
-      const matchingShelf = shelves.find((s) => s.name === product.rafKonum);
+      const matchingShelf = shelves.find((s) => s.name === defaultRaf);
       setSelectedShelfId(matchingShelf?.id);
+
+      if (product.id) {
+        loadTotals(product.id);
+      } else {
+        setTotals({ totalUnits: 0, totalSets: 0 });
+      }
     } else {
       setFormData({
-        urunKodu: '',
-        urunAdi: '',
-        rafKonum: '',
-        barkod: initialBarcode || '',
+        urunKodu: "",
+        urunAdi: "",
+        rafKonum: "",
+        barkod: initialBarcode || "",
         mevcutStok: 0,
         setStok: 0,
         minStok: 5,
-        not: '',
+        not: "",
       });
       setSelectedShelfId(undefined);
+      setTotals({ totalUnits: 0, totalSets: 0 });
     }
   }, [product, isOpen, initialBarcode, shelves]);
 
@@ -100,17 +127,19 @@ export function ProductModal({ isOpen, onClose, onSave, product, initialBarcode,
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const productData = {
+    const currentUnitsForAlert = product ? totals.totalUnits : formData.mevcutStok;
+
+    const productData: any = {
       ...formData,
-      acilisStok: product?.acilisStok || 0,
-      toplamGiris: product?.toplamGiris || 0,
-      toplamCikis: product?.toplamCikis || 0,
-      uyari: formData.mevcutStok < formData.minStok,
-      sonIslemTarihi: new Date().toISOString().split('T')[0],
+      acilisStok: (product as any)?.acilisStok || 0,
+      toplamGiris: (product as any)?.toplamGiris || 0,
+      toplamCikis: (product as any)?.toplamCikis || 0,
+      uyari: currentUnitsForAlert < formData.minStok,
+      sonIslemTarihi: new Date().toISOString().split("T")[0],
     };
 
     if (product) {
-      onSave({ ...productData, id: product.id });
+      onSave({ ...productData, id: product.id } as any);
       if (customFieldsRef.current && product?.id) {
         await customFieldsRef.current.save(product.id);
       }
@@ -129,9 +158,7 @@ export function ProductModal({ isOpen, onClose, onSave, product, initialBarcode,
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>
-            {product ? 'Ürün Düzenle' : 'Yeni Ürün Ekle'}
-          </DialogTitle>
+          <DialogTitle>{product ? "Ürün Düzenle" : "Yeni Ürün Ekle"}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
@@ -180,19 +207,17 @@ export function ProductModal({ isOpen, onClose, onSave, product, initialBarcode,
             required
           />
 
-          {/* ✅ Real stock shelves (from shelf_inventory) */}
+          {/* ✅ Real stock shelves (from shelf_inventory enrichment if you pass it in) */}
           {product && (shelfSummary || shelvesInfo.length > 0) && (
             <div className="rounded-md border border-border bg-muted/20 p-3">
-              <p className="text-xs text-muted-foreground mb-2">
-                Stok rafları (gerçek dağılım):
-              </p>
+              <p className="text-xs text-muted-foreground mb-2">Stok rafları (gerçek dağılım):</p>
               {shelvesInfo.length > 0 ? (
                 <div className="text-sm space-y-1">
                   {shelvesInfo.map((s) => (
                     <div key={s.shelfId} className="flex items-center justify-between">
                       <span className="font-medium">{s.shelfName}</span>
                       <span className="text-muted-foreground">
-                        {s.units} adet {s.sets ? `• ${s.sets} set` : ''}
+                        {s.units} adet {s.sets ? `• ${s.sets} set` : ""}
                       </span>
                     </div>
                   ))}
@@ -207,9 +232,27 @@ export function ProductModal({ isOpen, onClose, onSave, product, initialBarcode,
           {product && (
             <div className="border-t border-b border-border py-4 my-2">
               <Label className="text-sm font-medium mb-2 block">Hızlı Stok Hareketi</Label>
+
+              {/* ✅ Show real totals */}
+              <div className="mb-2 text-sm text-muted-foreground">
+                Mevcut Stok:{" "}
+                <span className="font-semibold text-foreground">{totals.totalUnits}</span>{" "}
+                {"  "}Set: <span className="font-semibold text-foreground">{totals.totalSets}</span>
+              </div>
+
               <QuickStockInput
-                product={product}
-                onSuccess={onStockUpdated}
+                product={
+                  {
+                    ...product,
+                    // ✅ feed real totals into quick component so it won't show 0
+                    mevcutStok: totals.totalUnits,
+                    setStok: totals.totalSets,
+                  } as any
+                }
+                onSuccess={async () => {
+                  if (product?.id) await loadTotals(product.id);
+                  onStockUpdated?.();
+                }}
                 showShelfSelector={false}
               />
             </div>
@@ -225,7 +268,9 @@ export function ProductModal({ isOpen, onClose, onSave, product, initialBarcode,
                   type="number"
                   min="0"
                   value={formData.mevcutStok}
-                  onChange={(e) => setFormData({ ...formData, mevcutStok: parseInt(e.target.value) || 0 })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, mevcutStok: parseInt(e.target.value) || 0 })
+                  }
                   placeholder="0"
                 />
               </div>
@@ -269,11 +314,7 @@ export function ProductModal({ isOpen, onClose, onSave, product, initialBarcode,
             </div>
           )}
 
-          <CustomFieldsSection
-            entityId={product?.id || null}
-            entityType="product"
-            valuesRef={customFieldsRef}
-          />
+          <CustomFieldsSection entityId={product?.id || null} entityType="product" valuesRef={customFieldsRef} />
 
           <div className="space-y-2">
             <Label htmlFor="not">Not</Label>
@@ -291,7 +332,7 @@ export function ProductModal({ isOpen, onClose, onSave, product, initialBarcode,
               İptal
             </Button>
             <Button type="submit" className="gradient-accent border-0">
-              {product ? 'Güncelle' : 'Ekle'}
+              {product ? "Güncelle" : "Ekle"}
             </Button>
           </div>
         </form>
