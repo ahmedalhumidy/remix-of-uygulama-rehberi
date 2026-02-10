@@ -51,16 +51,16 @@ export function ProductList({
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   const filteredProducts = useMemo(() => {
-    const query = searchQuery.toLowerCase().trim();
-    return (products as EnrichedProduct[]).filter((product) => {
-      const loc = getLocationText(product).toLowerCase();
-      return (
-        product.urunAdi.toLowerCase().includes(query) ||
-        product.urunKodu.toLowerCase().includes(query) ||
-        loc.includes(query)
-      );
-    });
-  }, [products, searchQuery]);
+  const query = searchQuery.toLowerCase();
+  return products.filter((product) => {
+    const loc = ((product as any).shelfSummary || product.rafKonum || "").toLowerCase();
+    return (
+      product.urunAdi.toLowerCase().includes(query) ||
+      product.urunKodu.toLowerCase().includes(query) ||
+      loc.includes(query)
+    );
+  });
+}, [products, searchQuery]);
 
   const sortedProducts = useMemo(() => {
     return [...filteredProducts].sort((a, b) => {
