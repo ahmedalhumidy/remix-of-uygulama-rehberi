@@ -1,98 +1,178 @@
-import { useEffect, useState } from "react";
-import { ArrowUpRight, ArrowDownRight } from "lucide-react";
-import { Product } from "@/types/stock";
+import { useMemo, useState } from "react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
-import { QuickStockInput } from "@/components/stock/QuickStockInput";
-import { supabase } from "@/integrations/supabase/client";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-interface StockActionModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+import { createStockMovement } from "@/lib/stockMovements";
+import { useShelves } from "@/hooks/useShelves";
+import { useProductShelfInventory } from "@/hooks/useProductShelfInventory";
+
+type Props = {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  productId: string;
+  productName: string;
+  employeeName: string; // handled_by
+  mode?: "giris" | "cikis"; // optional default
   onSuccess?: () => void;
-  product: Product | null;
-  actionType: "giris" | "cikis";
-}
+};
 
 export function StockActionModal({
-  isOpen,
-  onClose,
+  open,
+  onOpenChange,
+  productId,
+  productName,
+  employeeName,
+  mode = "giris",
   onSuccess,
-  product,
-  actionType,
-}: StockActionModalProps) {
-  const isGiris = actionType === "giris";
+}: Props) {
+  const { shelves, loading: shelvesLoading } = useShelves();
+  const { rows: shelfRows, loading: invLoading, reload: reloadInv } = useProductShelfInventory(productId);
 
-  const [totals, setTotals] = useState({ totalUnits: 0, totalSets: 0 });
+  const [movementType, setMovementType] = useState<"giris" | "cikis">(mode);
+  const [shelfId, setShelfId] = useState<string>("");
+  const [units, setUnits] = useState<string>("");
+  const [sets, setSets] = useState<string>("");
+  const [note, setNote] = useState<string>("");
 
-  const loadTotals = async (productId: string) => {
-    const { data, error } = await supabase
-      .from("shelf_inventory")
-      .select("units, sets")
-      .eq("product_id", productId);
+  const canSubmit = useMemo(() => {
+    const u = Number(units || 0);
+    const s = Number(sets || 0);
+    return !!shelfId && (u > 0 || s > 0);
+  }, [shelfId, units, sets]);
 
-    if (error) {
-      console.error("Failed to load totals in StockActionModal", error);
-      setTotals({ totalUnits: 0, totalSets: 0 });
-      return;
+  async function submit() {
+    try {
+      if (!canSubmit) {
+        toast.error("Raf seçin ve en az bir miktar girin (Adet veya Set).");
+        return;
+      }
+
+      await createStockMovement({
+        productId,
+        type: movementType,
+        quantity: Number(units || 0),
+        setQuantity: Number(sets || 0),
+        note: note.trim() || undefined,
+        shelfId,
+        handledBy: employeeName || "—",
+      });
+
+      toast.success("Stok hareketi kaydedildi.");
+      setUnits("");
+      setSets("");
+      setNote("");
+      // keep shelfId selected (better UX)
+      await reloadInv();
+      onSuccess?.();
+      onOpenChange(false);
+    } catch (e: any) {
+      toast.error(e?.message ?? "Hata oluştu.");
     }
-
-    const totalUnits = (data ?? []).reduce((sum: number, r: any) => sum + (r.units ?? 0), 0);
-    const totalSets  = (data ?? []).reduce((sum: number, r: any) => sum + (r.sets ?? 0), 0);
-
-    setTotals({ totalUnits, totalSets });
-  };
-
-  useEffect(() => {
-    if (!isOpen || !product?.id) return;
-    loadTotals(product.id);
-  }, [isOpen, product?.id]);
-
-  const handleSuccess = async () => {
-    if (product?.id) await loadTotals(product.id);
-    onSuccess?.();
-    onClose();
-  };
-
-  if (!product) return null;
-
-  // ✅ always pass real totals to QuickStockInput
-  const productWithTotals = {
-    ...product,
-    mevcutStok: totals.totalUnits,
-    setStok: totals.totalSets,
-  } as any as Product;
+  }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[450px]">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <div
-              className={cn("p-2 rounded-lg", isGiris ? "bg-success/10" : "bg-destructive/10")}
-            >
-              {isGiris ? (
-                <ArrowUpRight className="w-5 h-5 text-success" />
-              ) : (
-                <ArrowDownRight className="w-5 h-5 text-destructive" />
-              )}
-            </div>
-            {product.urunAdi}
-          </DialogTitle>
+          <DialogTitle>Stok Hareketi — {productName}</DialogTitle>
         </DialogHeader>
 
-        {/* ✅ show real totals */}
-        <div className="text-sm text-muted-foreground mb-2">
-          Mevcut Stok: <span className="font-semibold text-foreground">{totals.totalUnits}</span>
-          {"  "}Set: <span className="font-semibold text-foreground">{totals.totalSets}</span>
+        {/* Current per-shelf inventory */}
+        <div className="space-y-2">
+          <div className="text-sm font-medium">Raflara göre stok</div>
+          <div className="rounded-md border p-2 text-sm">
+            {invLoading ? (
+              <div>Yükleniyor…</div>
+            ) : shelfRows.length === 0 ? (
+              <div className="opacity-70">Bu ürün henüz hiçbir rafta kayıtlı değil.</div>
+            ) : (
+              <div className="space-y-1">
+                {shelfRows.map((r) => (
+                  <div key={r.shelf_id} className="flex items-center justify-between gap-3">
+                    <div className="font-medium">{r.shelf_name}</div>
+                    <div className="opacity-80">
+                      Adet: <b>{r.units}</b> — Set: <b>{r.sets}</b>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="py-2">
-          <QuickStockInput
-            product={productWithTotals}
-            onSuccess={handleSuccess}
-            showShelfSelector={true}
-          />
+        {/* Movement type */}
+        <div className="grid grid-cols-2 gap-2">
+          <Button
+            type="button"
+            variant={movementType === "giris" ? "default" : "outline"}
+            onClick={() => setMovementType("giris")}
+          >
+            (+) Giriş
+          </Button>
+          <Button
+            type="button"
+            variant={movementType === "cikis" ? "destructive" : "outline"}
+            onClick={() => setMovementType("cikis")}
+          >
+            (−) Çıkış
+          </Button>
+        </div>
+
+        {/* Shelf select (REQUIRED) */}
+        <div className="space-y-2">
+          <Label>Raf (zorunlu)</Label>
+          <Select value={shelfId} onValueChange={setShelfId}>
+            <SelectTrigger>
+              <SelectValue placeholder={shelvesLoading ? "Yükleniyor…" : "Raf seçin"} />
+            </SelectTrigger>
+            <SelectContent>
+              {shelves.map((s) => (
+                <SelectItem key={s.id} value={s.id}>
+                  {s.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Quantities */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-2">
+            <Label>Adet</Label>
+            <Input
+              inputMode="numeric"
+              value={units}
+              onChange={(e) => setUnits(e.target.value.replace(/[^\d]/g, ""))}
+              placeholder="0"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Set</Label>
+            <Input
+              inputMode="numeric"
+              value={sets}
+              onChange={(e) => setSets(e.target.value.replace(/[^\d]/g, ""))}
+              placeholder="0"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label>Not</Label>
+          <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="İsteğe bağlı…" />
+        </div>
+
+        <Button type="button" disabled={!canSubmit} onClick={submit}>
+          Kaydet
+        </Button>
+
+        <div className="text-xs opacity-70">
+          Not: Raf seçmeden hareket kaydedilmez. Ürün birden fazla rafta olabilir; burada hepsi ayrı gösterilir.
         </div>
       </DialogContent>
     </Dialog>
