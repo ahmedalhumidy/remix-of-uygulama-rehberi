@@ -51,17 +51,29 @@ export function ProductModal({ isOpen, onClose, onSave, product, initialBarcode,
   });
 
   useEffect(() => {
-    if (product) {
-      setFormData({
-        urunKodu: product.urunKodu,
-        urunAdi: product.urunAdi,
-        rafKonum: product.rafKonum,
-        barkod: product.barkod || '',
-        mevcutStok: product.mevcutStok,
-        setStok: product.setStok || 0,
-        minStok: product.minStok,
-        not: product.not || '',
-      });
+  if (product) {
+    // IMPORTANT:
+    // - products.rafKonum is now a *display* string (may contain multiple shelves)
+    // - defaultRafKonum keeps the product's default shelf (single)
+    const defaultRaf = (product as any).defaultRafKonum || product.rafKonum;
+
+    setFormData({
+      urunKodu: product.urunKodu,
+      urunAdi: product.urunAdi,
+      rafKonum: defaultRaf,
+      barkod: product.barkod || '',
+      mevcutStok: product.mevcutStok,
+      setStok: product.setStok || 0,
+      minStok: product.minStok,
+      not: product.not || '',
+    });
+
+    const matchingShelf = shelves.find(s => s.name === defaultRaf);
+    setSelectedShelfId(matchingShelf?.id);
+  } else {
+    ...
+  }
+}, [product, isOpen, initialBarcode, shelves]);
 
       const matchingShelf = shelves.find((s) => s.name === product.rafKonum);
       setSelectedShelfId(matchingShelf?.id);
