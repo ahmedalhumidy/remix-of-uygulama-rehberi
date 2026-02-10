@@ -15,6 +15,12 @@ import { useShelves, Shelf } from '@/hooks/useShelves';
 import { QuickStockInput } from '@/components/stock/QuickStockInput';
 import { CustomFieldsSection } from '@/modules/dynamic-forms/components/CustomFieldsSection';
 import type { CustomFieldValuesMap } from '@/modules/dynamic-forms/types';
+
+type EnrichedProduct = Product & {
+  shelfSummary?: string;
+  shelves?: { shelfId: string; shelfName: string; units: number; sets: number }[];
+};
+
 interface ProductModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -27,11 +33,12 @@ interface ProductModalProps {
 export function ProductModal({ isOpen, onClose, onSave, product, initialBarcode, onStockUpdated }: ProductModalProps) {
   const { shelves, addShelf } = useShelves();
   const [selectedShelfId, setSelectedShelfId] = useState<string | undefined>();
+
   const customFieldsRef = useRef<{
     values: CustomFieldValuesMap;
     save: (entityId: string) => Promise<boolean>;
   } | null>(null);
-  
+
   const [formData, setFormData] = useState({
     urunKodu: '',
     urunAdi: '',
@@ -55,8 +62,8 @@ export function ProductModal({ isOpen, onClose, onSave, product, initialBarcode,
         minStok: product.minStok,
         not: product.not || '',
       });
-      // Find matching shelf
-      const matchingShelf = shelves.find(s => s.name === product.rafKonum);
+
+      const matchingShelf = shelves.find((s) => s.name === product.rafKonum);
       setSelectedShelfId(matchingShelf?.id);
     } else {
       setFormData({
@@ -80,7 +87,7 @@ export function ProductModal({ isOpen, onClose, onSave, product, initialBarcode,
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const productData = {
       ...formData,
       acilisStok: product?.acilisStok || 0,
@@ -90,21 +97,21 @@ export function ProductModal({ isOpen, onClose, onSave, product, initialBarcode,
       sonIslemTarihi: new Date().toISOString().split('T')[0],
     };
 
-    let savedProduct;
     if (product) {
-      savedProduct = { ...productData, id: product.id };
-      onSave(savedProduct);
+      onSave({ ...productData, id: product.id });
+      if (customFieldsRef.current && product?.id) {
+        await customFieldsRef.current.save(product.id);
+      }
     } else {
-      savedProduct = onSave(productData);
+      await onSave(productData);
     }
 
-    // Save custom field values if module is active
-    if (customFieldsRef.current && product?.id) {
-      await customFieldsRef.current.save(product.id);
-    }
-    
     onClose();
   };
+
+  const enriched = product as EnrichedProduct | null;
+  const shelvesInfo = enriched?.shelves || [];
+  const shelfSummary = enriched?.shelfSummary;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -114,7 +121,7 @@ export function ProductModal({ isOpen, onClose, onSave, product, initialBarcode,
             {product ? 'Ürün Düzenle' : 'Yeni Ürün Ekle'}
           </DialogTitle>
         </DialogHeader>
-        
+
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -149,24 +156,47 @@ export function ProductModal({ isOpen, onClose, onSave, product, initialBarcode,
             />
           </div>
 
-          {/* Shelf Selector */}
+          {/* Default shelf (raf_konum) */}
           <ShelfSelector
             shelves={shelves}
             selectedShelfId={selectedShelfId}
             selectedShelfName={formData.rafKonum}
             onSelect={handleShelfSelect}
             onAddNew={addShelf}
-            label="Raf / Konum"
+            label="Raf / Konum (Varsayılan)"
             placeholder="Raf seçin veya yeni ekleyin..."
             required
           />
+
+          {/* ✅ Real stock shelves (from shelf_inventory) */}
+          {product && (shelfSummary || shelvesInfo.length > 0) && (
+            <div className="rounded-md border border-border bg-muted/20 p-3">
+              <p className="text-xs text-muted-foreground mb-2">
+                Stok rafları (gerçek dağılım):
+              </p>
+              {shelvesInfo.length > 0 ? (
+                <div className="text-sm space-y-1">
+                  {shelvesInfo.map((s) => (
+                    <div key={s.shelfId} className="flex items-center justify-between">
+                      <span className="font-medium">{s.shelfName}</span>
+                      <span className="text-muted-foreground">
+                        {s.units} adet {s.sets ? `• ${s.sets} set` : ''}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm">{shelfSummary}</p>
+              )}
+            </div>
+          )}
 
           {/* Quick Stock Input for existing products */}
           {product && (
             <div className="border-t border-b border-border py-4 my-2">
               <Label className="text-sm font-medium mb-2 block">Hızlı Stok Hareketi</Label>
-              <QuickStockInput 
-                product={product} 
+              <QuickStockInput
+                product={product}
                 onSuccess={onStockUpdated}
                 showShelfSelector={false}
               />
@@ -212,7 +242,6 @@ export function ProductModal({ isOpen, onClose, onSave, product, initialBarcode,
             </div>
           )}
 
-          {/* Min stock for existing products */}
           {product && (
             <div className="w-1/3">
               <div className="space-y-2">
@@ -228,7 +257,6 @@ export function ProductModal({ isOpen, onClose, onSave, product, initialBarcode,
             </div>
           )}
 
-          {/* Dynamic Custom Fields — only shows when module enabled and fields exist */}
           <CustomFieldsSection
             entityId={product?.id || null}
             entityType="product"
