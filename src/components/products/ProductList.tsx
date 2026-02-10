@@ -11,6 +11,8 @@ import {
 import { cn } from '@/lib/utils';
 import { usePermissions } from '@/hooks/usePermissions';
 
+type EnrichedProduct = Product & { shelfSummary?: string };
+
 interface ProductListProps {
   products: Product[];
   searchQuery: string;
@@ -23,13 +25,19 @@ interface ProductListProps {
 type SortField = 'urunAdi' | 'urunKodu' | 'mevcutStok' | 'rafKonum';
 type SortOrder = 'asc' | 'desc';
 
-export function ProductList({ 
-  products, 
-  searchQuery, 
-  onEditProduct, 
+function getLocationText(p: EnrichedProduct) {
+  return (p.shelfSummary && p.shelfSummary.trim().length > 0)
+    ? p.shelfSummary
+    : (p.rafKonum || '');
+}
+
+export function ProductList({
+  products,
+  searchQuery,
+  onEditProduct,
   onDeleteProduct,
   onViewProduct,
-  onStockAction 
+  onStockAction
 }: ProductListProps) {
   const { hasPermission } = usePermissions();
   const canEditProducts = hasPermission('products.update');
@@ -39,28 +47,33 @@ export function ProductList({
   const [sortField, setSortField] = useState<SortField>('urunAdi');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
 
-  // Safari'de çok büyük listeler sayfayı çökertmesin diye (özellikle mobilde)
-  // ürünleri parça parça render ediyoruz.
   const PAGE_SIZE = 50;
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   const filteredProducts = useMemo(() => {
-    const query = searchQuery.toLowerCase();
-    return products.filter((product) => (
-      product.urunAdi.toLowerCase().includes(query) ||
-      product.urunKodu.toLowerCase().includes(query) ||
-      product.rafKonum.toLowerCase().includes(query)
-    ));
+    const query = searchQuery.toLowerCase().trim();
+    return (products as EnrichedProduct[]).filter((product) => {
+      const loc = getLocationText(product).toLowerCase();
+      return (
+        product.urunAdi.toLowerCase().includes(query) ||
+        product.urunKodu.toLowerCase().includes(query) ||
+        loc.includes(query)
+      );
+    });
   }, [products, searchQuery]);
 
   const sortedProducts = useMemo(() => {
     return [...filteredProducts].sort((a, b) => {
       let comparison = 0;
+
       if (sortField === 'mevcutStok') {
         comparison = a.mevcutStok - b.mevcutStok;
+      } else if (sortField === 'rafKonum') {
+        comparison = getLocationText(a as EnrichedProduct).localeCompare(getLocationText(b as EnrichedProduct), 'tr');
       } else {
-        comparison = a[sortField].localeCompare(b[sortField], 'tr');
+        comparison = (a as any)[sortField].localeCompare((b as any)[sortField], 'tr');
       }
+
       return sortOrder === 'asc' ? comparison : -comparison;
     });
   }, [filteredProducts, sortField, sortOrder]);
@@ -70,10 +83,9 @@ export function ProductList({
     [sortedProducts, visibleCount]
   );
 
-  // Filtre/sıralama değişince sayfalamayı başa al
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
-  }, [searchQuery, sortField, sortOrder, PAGE_SIZE]);
+  }, [searchQuery, sortField, sortOrder]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -130,13 +142,16 @@ export function ProductList({
             </thead>
             <tbody>
               {visibleProducts.map((product, index) => {
+                const p = product as EnrichedProduct;
                 const isLowStock = product.mevcutStok < product.minStok;
-                 const delay = index < 20 ? index * 20 : 0;
+                const delay = index < 20 ? index * 20 : 0;
+                const loc = getLocationText(p);
+
                 return (
-                  <tr 
-                    key={product.id} 
+                  <tr
+                    key={product.id}
                     className="table-row-hover border-b border-border last:border-0 animate-fade-in"
-                     style={delay ? { animationDelay: `${delay}ms` } : undefined}
+                    style={delay ? { animationDelay: `${delay}ms` } : undefined}
                   >
                     <td className="py-4 px-4">
                       <span className="font-mono text-sm bg-muted px-2 py-1 rounded">
@@ -154,7 +169,7 @@ export function ProductList({
                     <td className="py-4 px-4">
                       <div className="flex items-center gap-2 text-muted-foreground">
                         <MapPin className="w-4 h-4" />
-                        <span>{product.rafKonum}</span>
+                        <span className="line-clamp-2">{loc}</span>
                       </div>
                     </td>
                     <td className="py-4 px-4 text-right">
@@ -225,7 +240,7 @@ export function ProductList({
                               </DropdownMenuItem>
                             )}
                             {canDeleteProducts && (
-                              <DropdownMenuItem 
+                              <DropdownMenuItem
                                 onClick={() => onDeleteProduct(product.id)}
                                 className="text-destructive focus:text-destructive"
                               >
@@ -248,11 +263,14 @@ export function ProductList({
       {/* Mobile Cards */}
       <div className="md:hidden space-y-3">
         {visibleProducts.map((product, index) => {
+          const p = product as EnrichedProduct;
           const isLowStock = product.mevcutStok < product.minStok;
           const delay = index < 20 ? index * 30 : 0;
+          const loc = getLocationText(p);
+
           return (
-            <div 
-              key={product.id} 
+            <div
+              key={product.id}
               className="stat-card animate-slide-up"
               style={delay ? { animationDelay: `${delay}ms` } : undefined}
             >
@@ -273,11 +291,11 @@ export function ProductList({
                   </span>
                 )}
               </div>
-              
+
               <div className="flex items-center justify-between text-sm mb-3">
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <MapPin className="w-4 h-4" />
-                  <span>{product.rafKonum}</span>
+                  <span className="line-clamp-2">{loc}</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="text-right">
@@ -297,7 +315,7 @@ export function ProductList({
                   )}
                 </div>
               </div>
-              
+
               <div className="flex items-center gap-2 pt-3 border-t border-border">
                 {canCreateMovements && (
                   <>
@@ -335,7 +353,7 @@ export function ProductList({
                       </DropdownMenuItem>
                     )}
                     {canDeleteProducts && (
-                      <DropdownMenuItem 
+                      <DropdownMenuItem
                         onClick={() => onDeleteProduct(product.id)}
                         className="text-destructive focus:text-destructive"
                       >
