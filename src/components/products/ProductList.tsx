@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
 import { usePermissions } from "@/hooks/usePermissions";
 import { supabase } from "@/integrations/supabase/client";
 
-type EnrichedProduct = Product & { shelfSummary?: string };
+type Totals = { units: number; sets: number };
 
 interface ProductListProps {
   products: Product[];
@@ -34,14 +34,6 @@ interface ProductListProps {
 
 type SortField = "urunAdi" | "urunKodu" | "mevcutStok" | "rafKonum";
 type SortOrder = "asc" | "desc";
-
-function getLocationText(p: EnrichedProduct) {
-  return p.shelfSummary && p.shelfSummary.trim().length > 0
-    ? p.shelfSummary
-    : p.rafKonum || "";
-}
-
-type Totals = { units: number; sets: number };
 
 export function ProductList({
   products,
@@ -65,6 +57,9 @@ export function ProductList({
   // ✅ totals map loaded from shelf_inventory for visible products
   const [totalsByProductId, setTotalsByProductId] = useState<Record<string, Totals>>({});
 
+  // ✅ shelf location summary loaded from shelf_inventory -> shelves(name) for visible products
+  const [locationByProductId, setLocationByProductId] = useState<Record<string, string>>({});
+
   const getTotals = (p: Product): Totals => {
     // fallback while loading to avoid flicker
     return (
@@ -75,17 +70,25 @@ export function ProductList({
     );
   };
 
+  // ✅ IMPORTANT: Use REAL shelves, not product.rafKonum
+  const getLocationText = (p: Product) => {
+    const loc = locationByProductId[p.id];
+    return loc && loc.trim().length > 0 ? loc : "—";
+  };
+
   const filteredProducts = useMemo(() => {
     const query = searchQuery.toLowerCase();
+
     return products.filter((product) => {
-      const loc = (((product as any).shelfSummary || product.rafKonum || "") as string).toLowerCase();
+      const loc = (locationByProductId[product.id] ?? "").toLowerCase();
+
       return (
         product.urunAdi.toLowerCase().includes(query) ||
         product.urunKodu.toLowerCase().includes(query) ||
         loc.includes(query)
       );
     });
-  }, [products, searchQuery]);
+  }, [products, searchQuery, locationByProductId]);
 
   const sortedProducts = useMemo(() => {
     return [...filteredProducts].sort((a, b) => {
@@ -96,25 +99,26 @@ export function ProductList({
         const bu = getTotals(b).units;
         comparison = au - bu;
       } else if (sortField === "rafKonum") {
-        comparison = getLocationText(a as EnrichedProduct).localeCompare(
-          getLocationText(b as EnrichedProduct),
-          "tr"
-        );
+        comparison = getLocationText(a).localeCompare(getLocationText(b), "tr");
       } else {
         comparison = (a as any)[sortField].localeCompare((b as any)[sortField], "tr");
       }
 
       return sortOrder === "asc" ? comparison : -comparison;
     });
-  }, [filteredProducts, sortField, sortOrder, totalsByProductId]); // totalsByProductId affects stok sort
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredProducts, sortField, sortOrder, totalsByProductId, locationByProductId]);
 
-  const visibleProducts = useMemo(() => sortedProducts.slice(0, visibleCount), [sortedProducts, visibleCount]);
+  const visibleProducts = useMemo(
+    () => sortedProducts.slice(0, visibleCount),
+    [sortedProducts, visibleCount]
+  );
 
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
   }, [searchQuery, sortField, sortOrder]);
 
-  // ✅ Load totals for visible products only
+  // ✅ Load totals + locations for visible products only
   useEffect(() => {
     const ids = visibleProducts.map((p) => p.id).filter(Boolean);
     if (ids.length === 0) return;
@@ -122,30 +126,63 @@ export function ProductList({
     let cancelled = false;
 
     (async () => {
-      const { data, error } = await supabase
+      // 1) Totals
+      const { data: totalsData, error: totalsError } = await supabase
         .from("shelf_inventory")
         .select("product_id, units, sets")
         .in("product_id", ids);
 
       if (cancelled) return;
 
-      if (error) {
-        console.error("Failed to load shelf totals for list", error);
-        return;
+      if (totalsError) {
+        console.error("Failed to load shelf totals for list", totalsError);
+      } else {
+        const totalsMap: Record<string, Totals> = {};
+        for (const id of ids) totalsMap[id] = { units: 0, sets: 0 };
+
+        for (const r of totalsData ?? []) {
+          const pid = (r as any).product_id as string;
+          if (!pid) continue;
+          if (!totalsMap[pid]) totalsMap[pid] = { units: 0, sets: 0 };
+          totalsMap[pid].units += (r as any).units ?? 0;
+          totalsMap[pid].sets += (r as any).sets ?? 0;
+        }
+
+        setTotalsByProductId((prev) => ({ ...prev, ...totalsMap }));
       }
 
-      const map: Record<string, Totals> = {};
-      for (const id of ids) map[id] = { units: 0, sets: 0 };
+      // 2) Real shelf locations (names)
+      const { data: locData, error: locError } = await supabase
+        .from("shelf_inventory")
+        .select("product_id, shelves(name)")
+        .in("product_id", ids);
 
-      for (const r of data ?? []) {
-        const pid = (r as any).product_id as string;
-        if (!pid) continue;
-        if (!map[pid]) map[pid] = { units: 0, sets: 0 };
-        map[pid].units += (r as any).units ?? 0;
-        map[pid].sets += (r as any).sets ?? 0;
+      if (cancelled) return;
+
+      if (locError) {
+        console.error("Failed to load shelf locations for list", locError);
+      } else {
+        const buckets: Record<string, string[]> = {};
+        for (const id of ids) buckets[id] = [];
+
+        for (const r of locData ?? []) {
+          const pid = (r as any).product_id as string;
+          const name = (r as any)?.shelves?.name as string | undefined;
+          if (!pid || !name) continue;
+          if (!buckets[pid]) buckets[pid] = [];
+          buckets[pid].push(name);
+        }
+
+        const locMap: Record<string, string> = {};
+        for (const pid of Object.keys(buckets)) {
+          const uniq = Array.from(new Set(buckets[pid])).sort((a, b) =>
+            a.localeCompare(b, "tr")
+          );
+          locMap[pid] = uniq.join(", ");
+        }
+
+        setLocationByProductId((prev) => ({ ...prev, ...locMap }));
       }
-
-      setTotalsByProductId((prev) => ({ ...prev, ...map }));
     })();
 
     return () => {
@@ -199,11 +236,11 @@ export function ProductList({
                 <th className="text-right py-4 px-4 text-sm font-medium text-muted-foreground">İşlemler</th>
               </tr>
             </thead>
+
             <tbody>
               {visibleProducts.map((product, index) => {
-                const p = product as EnrichedProduct;
                 const delay = index < 20 ? index * 20 : 0;
-                const loc = getLocationText(p);
+                const loc = getLocationText(product);
 
                 const totals = getTotals(product);
                 const isLowStock = totals.units < product.minStok;
@@ -319,6 +356,7 @@ export function ProductList({
                 );
               })}
             </tbody>
+
           </table>
         </div>
       </div>
@@ -326,9 +364,8 @@ export function ProductList({
       {/* Mobile Cards */}
       <div className="md:hidden space-y-3">
         {visibleProducts.map((product, index) => {
-          const p = product as EnrichedProduct;
           const delay = index < 20 ? index * 30 : 0;
-          const loc = getLocationText(p);
+          const loc = getLocationText(product);
 
           const totals = getTotals(product);
           const isLowStock = totals.units < product.minStok;
