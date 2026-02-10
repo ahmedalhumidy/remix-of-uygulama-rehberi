@@ -1,15 +1,25 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Package, MapPin, AlertTriangle, MoreHorizontal, Edit2, Trash2, ArrowUpDown, Eye } from 'lucide-react';
-import { Product } from '@/types/stock';
-import { Button } from '@/components/ui/button';
+import { useEffect, useMemo, useState } from "react";
+import {
+  Package,
+  MapPin,
+  AlertTriangle,
+  MoreHorizontal,
+  Edit2,
+  Trash2,
+  ArrowUpDown,
+  Eye,
+} from "lucide-react";
+import { Product } from "@/types/stock";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { cn } from '@/lib/utils';
-import { usePermissions } from '@/hooks/usePermissions';
+} from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
+import { usePermissions } from "@/hooks/usePermissions";
+import { supabase } from "@/integrations/supabase/client";
 
 type EnrichedProduct = Product & { shelfSummary?: string };
 
@@ -19,17 +29,19 @@ interface ProductListProps {
   onEditProduct: (product: Product) => void;
   onDeleteProduct: (id: string) => void;
   onViewProduct: (id: string) => void;
-  onStockAction: (product: Product, type: 'giris' | 'cikis') => void;
+  onStockAction: (product: Product, type: "giris" | "cikis") => void;
 }
 
-type SortField = 'urunAdi' | 'urunKodu' | 'mevcutStok' | 'rafKonum';
-type SortOrder = 'asc' | 'desc';
+type SortField = "urunAdi" | "urunKodu" | "mevcutStok" | "rafKonum";
+type SortOrder = "asc" | "desc";
 
 function getLocationText(p: EnrichedProduct) {
-  return (p.shelfSummary && p.shelfSummary.trim().length > 0)
+  return p.shelfSummary && p.shelfSummary.trim().length > 0
     ? p.shelfSummary
-    : (p.rafKonum || '');
+    : p.rafKonum || "";
 }
+
+type Totals = { units: number; sets: number };
 
 export function ProductList({
   products,
@@ -37,62 +49,116 @@ export function ProductList({
   onEditProduct,
   onDeleteProduct,
   onViewProduct,
-  onStockAction
+  onStockAction,
 }: ProductListProps) {
   const { hasPermission } = usePermissions();
-  const canEditProducts = hasPermission('products.update');
-  const canDeleteProducts = hasPermission('products.delete');
-  const canCreateMovements = hasPermission('stock_movements.create');
+  const canEditProducts = hasPermission("products.update");
+  const canDeleteProducts = hasPermission("products.delete");
+  const canCreateMovements = hasPermission("stock_movements.create");
 
-  const [sortField, setSortField] = useState<SortField>('urunAdi');
-  const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
+  const [sortField, setSortField] = useState<SortField>("urunAdi");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
 
   const PAGE_SIZE = 50;
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
-  const filteredProducts = useMemo(() => {
-  const query = searchQuery.toLowerCase();
-  return products.filter((product) => {
-    const loc = ((product as any).shelfSummary || product.rafKonum || "").toLowerCase();
+  // ✅ totals map loaded from shelf_inventory for visible products
+  const [totalsByProductId, setTotalsByProductId] = useState<Record<string, Totals>>({});
+
+  const getTotals = (p: Product): Totals => {
+    // fallback while loading to avoid flicker
     return (
-      product.urunAdi.toLowerCase().includes(query) ||
-      product.urunKodu.toLowerCase().includes(query) ||
-      loc.includes(query)
+      totalsByProductId[p.id] ?? {
+        units: (p as any).mevcutStok ?? 0,
+        sets: (p as any).setStok ?? 0,
+      }
     );
-  });
-}, [products, searchQuery]);
+  };
+
+  const filteredProducts = useMemo(() => {
+    const query = searchQuery.toLowerCase();
+    return products.filter((product) => {
+      const loc = (((product as any).shelfSummary || product.rafKonum || "") as string).toLowerCase();
+      return (
+        product.urunAdi.toLowerCase().includes(query) ||
+        product.urunKodu.toLowerCase().includes(query) ||
+        loc.includes(query)
+      );
+    });
+  }, [products, searchQuery]);
 
   const sortedProducts = useMemo(() => {
     return [...filteredProducts].sort((a, b) => {
       let comparison = 0;
 
-      if (sortField === 'mevcutStok') {
-        comparison = a.mevcutStok - b.mevcutStok;
-      } else if (sortField === 'rafKonum') {
-        comparison = getLocationText(a as EnrichedProduct).localeCompare(getLocationText(b as EnrichedProduct), 'tr');
+      if (sortField === "mevcutStok") {
+        const au = getTotals(a).units;
+        const bu = getTotals(b).units;
+        comparison = au - bu;
+      } else if (sortField === "rafKonum") {
+        comparison = getLocationText(a as EnrichedProduct).localeCompare(
+          getLocationText(b as EnrichedProduct),
+          "tr"
+        );
       } else {
-        comparison = (a as any)[sortField].localeCompare((b as any)[sortField], 'tr');
+        comparison = (a as any)[sortField].localeCompare((b as any)[sortField], "tr");
       }
 
-      return sortOrder === 'asc' ? comparison : -comparison;
+      return sortOrder === "asc" ? comparison : -comparison;
     });
-  }, [filteredProducts, sortField, sortOrder]);
+  }, [filteredProducts, sortField, sortOrder, totalsByProductId]); // totalsByProductId affects stok sort
 
-  const visibleProducts = useMemo(
-    () => sortedProducts.slice(0, visibleCount),
-    [sortedProducts, visibleCount]
-  );
+  const visibleProducts = useMemo(() => sortedProducts.slice(0, visibleCount), [sortedProducts, visibleCount]);
 
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
   }, [searchQuery, sortField, sortOrder]);
 
+  // ✅ Load totals for visible products only
+  useEffect(() => {
+    const ids = visibleProducts.map((p) => p.id).filter(Boolean);
+    if (ids.length === 0) return;
+
+    let cancelled = false;
+
+    (async () => {
+      const { data, error } = await supabase
+        .from("shelf_inventory")
+        .select("product_id, units, sets")
+        .in("product_id", ids);
+
+      if (cancelled) return;
+
+      if (error) {
+        console.error("Failed to load shelf totals for list", error);
+        return;
+      }
+
+      const map: Record<string, Totals> = {};
+      for (const id of ids) map[id] = { units: 0, sets: 0 };
+
+      for (const r of data ?? []) {
+        const pid = (r as any).product_id as string;
+        if (!pid) continue;
+        if (!map[pid]) map[pid] = { units: 0, sets: 0 };
+        map[pid].units += (r as any).units ?? 0;
+        map[pid].sets += (r as any).sets ?? 0;
+      }
+
+      setTotalsByProductId((prev) => ({ ...prev, ...map }));
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [visibleProducts]);
+
   const handleSort = (field: SortField) => {
     if (sortField === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
     } else {
       setSortField(field);
-      setSortOrder('asc');
+      setSortOrder("asc");
     }
   };
 
@@ -102,10 +168,9 @@ export function ProductList({
       className="flex items-center gap-1 hover:text-foreground transition-colors"
     >
       {label}
-      <ArrowUpDown className={cn(
-        'w-3 h-3',
-        sortField === field ? 'text-accent' : 'text-muted-foreground/50'
-      )} />
+      <ArrowUpDown
+        className={cn("w-3 h-3", sortField === field ? "text-accent" : "text-muted-foreground/50")}
+      />
     </button>
   );
 
@@ -129,23 +194,26 @@ export function ProductList({
                 <th className="text-right py-4 px-4 text-sm font-medium text-muted-foreground">
                   <SortButton field="mevcutStok" label="Stok" />
                 </th>
-                <th className="text-right py-4 px-4 text-sm font-medium text-muted-foreground">
-                  Set
-                </th>
-                <th className="text-center py-4 px-4 text-sm font-medium text-muted-foreground">
-                  Durum
-                </th>
-                <th className="text-right py-4 px-4 text-sm font-medium text-muted-foreground">
-                  İşlemler
-                </th>
+                <th className="text-right py-4 px-4 text-sm font-medium text-muted-foreground">Set</th>
+                <th className="text-center py-4 px-4 text-sm font-medium text-muted-foreground">Durum</th>
+                <th className="text-right py-4 px-4 text-sm font-medium text-muted-foreground">İşlemler</th>
               </tr>
             </thead>
             <tbody>
               {visibleProducts.map((product, index) => {
                 const p = product as EnrichedProduct;
-                const isLowStock = product.mevcutStok < product.minStok;
                 const delay = index < 20 ? index * 20 : 0;
                 const loc = getLocationText(p);
+
+                const totals = getTotals(product);
+                const isLowStock = totals.units < product.minStok;
+
+                // send correct totals when opening stock actions / edit
+                const productWithTotals = {
+                  ...product,
+                  mevcutStok: totals.units,
+                  setStok: totals.sets,
+                } as any as Product;
 
                 return (
                   <tr
@@ -154,10 +222,9 @@ export function ProductList({
                     style={delay ? { animationDelay: `${delay}ms` } : undefined}
                   >
                     <td className="py-4 px-4">
-                      <span className="font-mono text-sm bg-muted px-2 py-1 rounded">
-                        {product.urunKodu}
-                      </span>
+                      <span className="font-mono text-sm bg-muted px-2 py-1 rounded">{product.urunKodu}</span>
                     </td>
+
                     <td className="py-4 px-4">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -166,28 +233,25 @@ export function ProductList({
                         <span className="font-medium text-foreground">{product.urunAdi}</span>
                       </div>
                     </td>
+
                     <td className="py-4 px-4">
                       <div className="flex items-center gap-2 text-muted-foreground">
                         <MapPin className="w-4 h-4" />
                         <span className="line-clamp-2">{loc}</span>
                       </div>
                     </td>
+
                     <td className="py-4 px-4 text-right">
-                      <span className={cn(
-                        'font-semibold',
-                        isLowStock ? 'text-destructive' : 'text-foreground'
-                      )}>
-                        {product.mevcutStok}
+                      <span className={cn("font-semibold", isLowStock ? "text-destructive" : "text-foreground")}>
+                        {totals.units}
                       </span>
-                      <span className="text-muted-foreground text-sm ml-1">
-                        / {product.minStok}
-                      </span>
+                      <span className="text-muted-foreground text-sm ml-1">/ {product.minStok}</span>
                     </td>
+
                     <td className="py-4 px-4 text-right">
-                      <span className="font-medium text-muted-foreground">
-                        {product.setStok || 0}
-                      </span>
+                      <span className="font-medium text-muted-foreground">{totals.sets || 0}</span>
                     </td>
+
                     <td className="py-4 px-4 text-center">
                       {isLowStock ? (
                         <span className="badge-status bg-destructive/10 text-destructive">
@@ -195,11 +259,10 @@ export function ProductList({
                           Düşük
                         </span>
                       ) : (
-                        <span className="badge-status bg-success/10 text-success">
-                          Normal
-                        </span>
+                        <span className="badge-status bg-success/10 text-success">Normal</span>
                       )}
                     </td>
+
                     <td className="py-4 px-4 text-right">
                       <div className="flex items-center justify-end gap-1">
                         {canCreateMovements && (
@@ -208,7 +271,7 @@ export function ProductList({
                               size="sm"
                               variant="ghost"
                               className="h-8 text-success hover:bg-success/10 hover:text-success"
-                              onClick={() => onStockAction(product, 'giris')}
+                              onClick={() => onStockAction(productWithTotals, "giris")}
                             >
                               +
                             </Button>
@@ -216,7 +279,7 @@ export function ProductList({
                               size="sm"
                               variant="ghost"
                               className="h-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                              onClick={() => onStockAction(product, 'cikis')}
+                              onClick={() => onStockAction(productWithTotals, "cikis")}
                             >
                               −
                             </Button>
@@ -234,7 +297,7 @@ export function ProductList({
                               Görüntüle
                             </DropdownMenuItem>
                             {canEditProducts && (
-                              <DropdownMenuItem onClick={() => onEditProduct(product)}>
+                              <DropdownMenuItem onClick={() => onEditProduct(productWithTotals)}>
                                 <Edit2 className="w-4 h-4 mr-2" />
                                 Düzenle
                               </DropdownMenuItem>
@@ -264,9 +327,17 @@ export function ProductList({
       <div className="md:hidden space-y-3">
         {visibleProducts.map((product, index) => {
           const p = product as EnrichedProduct;
-          const isLowStock = product.mevcutStok < product.minStok;
           const delay = index < 20 ? index * 30 : 0;
           const loc = getLocationText(p);
+
+          const totals = getTotals(product);
+          const isLowStock = totals.units < product.minStok;
+
+          const productWithTotals = {
+            ...product,
+            mevcutStok: totals.units,
+            setStok: totals.sets,
+          } as any as Product;
 
           return (
             <div
@@ -297,20 +368,19 @@ export function ProductList({
                   <MapPin className="w-4 h-4" />
                   <span className="line-clamp-2">{loc}</span>
                 </div>
+
                 <div className="flex items-center gap-3">
                   <div className="text-right">
-                    <span className={cn(
-                      'font-semibold text-lg',
-                      isLowStock ? 'text-destructive' : 'text-foreground'
-                    )}>
-                      {product.mevcutStok}
+                    <span className={cn("font-semibold text-lg", isLowStock ? "text-destructive" : "text-foreground")}>
+                      {totals.units}
                     </span>
                     <span className="text-muted-foreground ml-1">/ {product.minStok}</span>
                   </div>
-                  {(product.setStok || 0) > 0 && (
+
+                  {(totals.sets || 0) > 0 && (
                     <div className="text-right border-l pl-3 border-border">
                       <span className="text-sm text-muted-foreground">Set: </span>
-                      <span className="font-medium">{product.setStok}</span>
+                      <span className="font-medium">{totals.sets}</span>
                     </div>
                   )}
                 </div>
@@ -322,19 +392,20 @@ export function ProductList({
                     <Button
                       size="sm"
                       className="flex-1 bg-success/10 text-success hover:bg-success/20 border-0"
-                      onClick={() => onStockAction(product, 'giris')}
+                      onClick={() => onStockAction(productWithTotals, "giris")}
                     >
                       + Giriş
                     </Button>
                     <Button
                       size="sm"
                       className="flex-1 bg-destructive/10 text-destructive hover:bg-destructive/20 border-0"
-                      onClick={() => onStockAction(product, 'cikis')}
+                      onClick={() => onStockAction(productWithTotals, "cikis")}
                     >
                       − Çıkış
                     </Button>
                   </>
                 )}
+
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" size="sm">
@@ -347,7 +418,7 @@ export function ProductList({
                       Görüntüle
                     </DropdownMenuItem>
                     {canEditProducts && (
-                      <DropdownMenuItem onClick={() => onEditProduct(product)}>
+                      <DropdownMenuItem onClick={() => onEditProduct(productWithTotals)}>
                         <Edit2 className="w-4 h-4 mr-2" />
                         Düzenle
                       </DropdownMenuItem>
@@ -381,7 +452,8 @@ export function ProductList({
         <div className="mt-4 stat-card">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <p className="text-sm text-muted-foreground">
-              Gösterilen: <span className="font-medium text-foreground">{visibleProducts.length}</span> / {sortedProducts.length}
+              Gösterilen: <span className="font-medium text-foreground">{visibleProducts.length}</span> /{" "}
+              {sortedProducts.length}
             </p>
             <Button
               type="button"
